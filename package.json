@@ -8,7 +8,7 @@
     "deploy": "vercel --prod"
   },
   "dependencies": {
-    "e-fatura": "^3.0.0"
+    "e-fatura": "^2.0.1"
   },
   "devDependencies": {
     "vercel": "^39.0.0"

@@ -1,11 +1,12 @@
-import EInvoice, {
+const {
+  default: EInvoice,
   InvoiceType,
   EInvoiceCountry,
   EInvoiceUnitType,
   EInvoiceCurrencyType,
   EInvoiceApiError,
   EInvoiceTypeError
-} from 'e-fatura'
+} = require('e-fatura')
 
 const INVOICE_TYPE_MAP = {
   SATIS: InvoiceType.SATIS,
@@ -39,16 +40,23 @@ const CURRENCY_MAP = {
 }
 
 function mapProducts(products) {
-  return products.map((item) => ({
-    name: item.name,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    price: item.unitPrice,
-    unitType: UNIT_TYPE_MAP[item.unitType] || EInvoiceUnitType.ADET,
-    totalAmount: item.totalAmount || item.quantity * item.unitPrice,
-    vatRate: item.vatRate || 0,
-    vatAmount: item.vatAmount || 0
-  }))
+  return products.map((item) => {
+    const totalAmount = item.totalAmount || item.quantity * item.unitPrice
+    const vatAmount = item.vatAmount !== undefined
+      ? item.vatAmount
+      : totalAmount * ((item.vatRate || 0) / 100)
+
+    return {
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      price: item.unitPrice,
+      unitType: UNIT_TYPE_MAP[item.unitType] || EInvoiceUnitType.ADET,
+      totalAmount,
+      vatRate: item.vatRate || 0,
+      vatAmount
+    }
+  })
 }
 
 function buildInvoicePayload(body) {
@@ -58,15 +66,19 @@ function buildInvoicePayload(body) {
   const totalVat = products.reduce((sum, p) => sum + (p.vatAmount || 0), 0)
   const paymentPrice = body.paymentPrice || productsTotalPrice + totalVat
 
+  const now = new Date()
+  const date = body.date || now.toLocaleDateString('tr-TR').replace(/\//g, '.')
+  const time = body.time || now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
   return {
     uuid: body.uuid,
-    date: body.date,
-    time: body.time,
+    date,
+    time,
     invoiceType: INVOICE_TYPE_MAP[body.invoiceType] || InvoiceType.SATIS,
     currency: CURRENCY_MAP[body.currency] || EInvoiceCurrencyType.TURK_LIRASI,
     currencyRate: body.currencyRate || 1,
     country: EInvoiceCountry.TURKIYE,
-    
+
     buyerFirstName: body.buyerFirstName,
     buyerLastName: body.buyerLastName,
     buyerTitle: body.buyerTitle,
@@ -77,14 +89,14 @@ function buildInvoicePayload(body) {
     buyerAddress: body.buyerAddress,
     buyerCity: body.buyerCity,
     buyerDistrict: body.buyerDistrict,
-    
+
     products,
     productsTotalPrice,
     includedTaxesTotalPrice: paymentPrice,
     totalVat,
     paymentPrice,
     base: productsTotalPrice,
-    
+
     note: body.note,
     orderNumber: body.orderNumber,
     orderDate: body.orderDate,
@@ -93,8 +105,16 @@ function buildInvoicePayload(body) {
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
   res.setHeader('Content-Type', 'application/json')
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
 
   if (req.method !== 'POST') {
     return res.status(405).json({
@@ -128,6 +148,13 @@ export default async function handler(req, res) {
     })
   }
 
+  if (!body.buyerTaxId) {
+    return res.status(400).json({
+      success: false,
+      error: 'buyerTaxId (TC/Vergi No) is required.'
+    })
+  }
+
   try {
     if (TEST_MODE === 'true') {
       EInvoice.setTestMode(true)
@@ -158,14 +185,12 @@ export default async function handler(req, res) {
       }
     })
   } catch (error) {
-    try {
-      await EInvoice.logout()
-    } catch {}
+    try { await EInvoice.logout() } catch (_) {}
 
     if (error instanceof EInvoiceApiError) {
       return res.status(400).json({
         success: false,
-        error: 'GIB API Error',
+        error: 'GIB API Hatası',
         message: error.message,
         errorCode: error.errorCode
       })
@@ -174,7 +199,7 @@ export default async function handler(req, res) {
     if (error instanceof EInvoiceTypeError) {
       return res.status(400).json({
         success: false,
-        error: 'Validation Error',
+        error: 'Doğrulama Hatası',
         message: error.message
       })
     }

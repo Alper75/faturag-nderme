@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Arşiv Fatura Gönderme Paneli</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">E-Arşiv Fatura Gönderme</h1>
+    
+    <form id="invoiceForm" class="bg-white rounded-lg shadow-md p-6 space-y-6">
+      <div class="border-b pb-4">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Alıcı Bilgileri</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Ad</label>
+            <input type="text" name="buyerFirstName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Soyad</label>
+            <input type="text" name="buyerLastName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Unvan (Şirket için)</label>
+            <input type="text" name="buyerTitle" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">TC/Vergi No *</label>
+            <input type="text" name="buyerTaxId" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Dairesi</label>
+            <input type="text" name="buyerTaxOffice" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">E-posta</label>
+            <input type="email" name="buyerEmail" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Telefon</label>
+            <input type="text" name="buyerPhoneNumber" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">İl</label>
+            <input type="text" name="buyerCity" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">İlçe</label>
+            <input type="text" name="buyerDistrict" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Adres</label>
+            <textarea name="buyerAddress" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-b pb-4">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Fatura Bilgileri</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tipi</label>
+            <select name="invoiceType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="SATIS">Satış</option>
+              <option value="IADE">İade</option>
+              <option value="TEVKIFAT">Tevkifat</option>
+              <option value="ISTISNA">İstisna</option>
+              <option value="OZEL_MATRAH">Özel Matrah</option>
+              <option value="IHRAC_KAYITLI">İhraç Kayıtlı</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Para Birimi</label>
+            <select name="currency" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="TRY">TRY - Türk Lirası</option>
+              <option value="USD">USD - Amerikan Doları</option>
+              <option value="EUR">EUR - Euro</option>
+              <option value="GBP">GBP - İngiliz Sterlini</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Otomatik İmzala</label>
+            <select name="autoSign" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="true">Evet</option>
+              <option value="false">Hayır</option>
+            </select>
+          </div>
+          <div class="md:col-span-3">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Not</label>
+            <textarea name="note" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-b pb-4">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold text-gray-700">Ürünler / Hizmetler</h2>
+          <button type="button" onclick="addProduct()" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition">+ Ürün Ekle</button>
+        </div>
+        <div id="productsContainer" class="space-y-4">
+          <div class="product-item bg-gray-50 p-4 rounded-md">
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-600 mb-1">Ürün/Hizmet Adı *</label>
+                <input type="text" name="productName" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">Miktar *</label>
+                <input type="number" name="productQuantity" value="1" min="1" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">Birim Fiyat *</label>
+                <input type="number" name="productUnitPrice" step="0.01" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">Birim</label>
+                <select name="productUnitType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="ADET">Adet</option>
+                  <option value="PAKET">Paket</option>
+                  <option value="KUTU">Kutu</option>
+                  <option value="KG">Kg</option>
+                  <option value="LT">Lt</option>
+                  <option value="TON">Ton</option>
+                  <option value="M2">m²</option>
+                  <option value="M3">m³</option>
+                  <option value="SAAT">Saat</option>
+                  <option value="GUN">Gün</option>
+                  <option value="AY">Ay</option>
+                  <option value="YIL">Yıl</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">KDV %</label>
+                <select name="productVatRate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="0">%0</option>
+                  <option value="1">%1</option>
+                  <option value="10">%10</option>
+                  <option value="20" selected>%20</option>
+                </select>
+              </div>
+            </div>
+            <button type="button" onclick="removeProduct(this)" class="mt-2 text-red-500 hover:text-red-700 text-sm">Sil</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <div id="totalDisplay" class="text-lg font-semibold text-gray-700"></div>
+        <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition font-semibold">Fatura Gönder</button>
+      </div>
+    </form>
+
+    <div id="result" class="mt-6 hidden">
+      <div id="resultContent" class="p-4 rounded-md"></div>
+    </div>
+  </div>
+
+  <script>
+    function addProduct() {
+      const container = document.getElementById('productsContainer');
+      const template = container.querySelector('.product-item').cloneNode(true);
+      template.querySelectorAll('input').forEach(input => {
+        if (input.name === 'productQuantity') input.value = '1';
+        else if (input.type !== 'number') input.value = '';
+        else input.value = '';
+      });
+      container.appendChild(template);
+      updateTotal();
+    }
+
+    function removeProduct(btn) {
+      const container = document.getElementById('productsContainer');
+      if (container.children.length > 1) {
+        btn.closest('.product-item').remove();
+        updateTotal();
+      }
+    }
+
+    function updateTotal() {
+      const items = document.querySelectorAll('.product-item');
+      let subtotal = 0;
+      let totalVat = 0;
+
+      items.forEach(item => {
+        const qty = parseFloat(item.querySelector('[name="productQuantity"]').value) || 0;
+        const price = parseFloat(item.querySelector('[name="productUnitPrice"]').value) || 0;
+        const vatRate = parseFloat(item.querySelector('[name="productVatRate"]').value) || 0;
+        const lineTotal = qty * price;
+        const lineVat = lineTotal * (vatRate / 100);
+        subtotal += lineTotal;
+        totalVat += lineVat;
+      });
+
+      document.getElementById('totalDisplay').innerHTML = 
+        `Ara Toplam: ${subtotal.toFixed(2)} | KDV: ${totalVat.toFixed(2)} | <strong>Toplam: ${(subtotal + totalVat).toFixed(2)}</strong>`;
+    }
+
+    document.querySelectorAll('#productsContainer').forEach(container => {
+      container.addEventListener('input', updateTotal);
+    });
+    document.getElementById('productsContainer').addEventListener('input', updateTotal);
+
+    document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const form = e.target;
+      const formData = new FormData(form);
+      
+      const products = [];
+      document.querySelectorAll('.product-item').forEach(item => {
+        const qty = parseFloat(item.querySelector('[name="productQuantity"]').value) || 0;
+        const price = parseFloat(item.querySelector('[name="productUnitPrice"]').value) || 0;
+        const vatRate = parseFloat(item.querySelector('[name="productVatRate"]').value) || 0;
+        const totalAmount = qty * price;
+        const vatAmount = totalAmount * (vatRate / 100);
+
+        products.push({
+          name: item.querySelector('[name="productName"]').value,
+          quantity: qty,
+          unitPrice: price,
+          unitType: item.querySelector('[name="productUnitType"]').value,
+          vatRate: vatRate,
+          vatAmount: vatAmount,
+          totalAmount: totalAmount
+        });
+      });
+
+      const payload = {
+        buyerFirstName: formData.get('buyerFirstName') || undefined,
+        buyerLastName: formData.get('buyerLastName') || undefined,
+        buyerTitle: formData.get('buyerTitle') || undefined,
+        buyerTaxId: formData.get('buyerTaxId'),
+        buyerTaxOffice: formData.get('buyerTaxOffice') || undefined,
+        buyerEmail: formData.get('buyerEmail') || undefined,
+        buyerPhoneNumber: formData.get('buyerPhoneNumber') || undefined,
+        buyerCity: formData.get('buyerCity') || undefined,
+        buyerDistrict: formData.get('buyerDistrict') || undefined,
+        buyerAddress: formData.get('buyerAddress') || undefined,
+        invoiceType: formData.get('invoiceType'),
+        currency: formData.get('currency'),
+        autoSign: formData.get('autoSign') === 'true',
+        note: formData.get('note') || undefined,
+        products: products
+      };
+
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+      const resultDiv = document.getElementById('result');
+      const resultContent = document.getElementById('resultContent');
+      resultDiv.classList.remove('hidden');
+      resultContent.className = 'p-4 rounded-md bg-yellow-100 text-yellow-800';
+      resultContent.innerHTML = 'Fatura gönderiliyor...';
+
+      try {
+        const response = await fetch('/api/send-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          resultContent.className = 'p-4 rounded-md bg-green-100 text-green-800';
+          resultContent.innerHTML = `
+            <strong>Fatura Başarıyla Oluşturuldu!</strong><br>
+            UUID: <code class="bg-green-200 px-2 py-1 rounded">${data.data.invoiceUUID}</code><br>
+            İmzalandı: ${data.data.signed ? 'Evet' : 'Hayır'}
+          `;
+        } else {
+          resultContent.className = 'p-4 rounded-md bg-red-100 text-red-800';
+          resultContent.innerHTML = `
+            <strong>Hata!</strong><br>
+            ${data.error}: ${data.message}
+            ${data.errorCode ? `<br>Hata Kodu: ${data.errorCode}` : ''}
+          `;
+        }
+      } catch (error) {
+        resultContent.className = 'p-4 rounded-md bg-red-100 text-red-800';
+        resultContent.innerHTML = `<strong>Bağlantı Hatası:</strong> ${error.message}`;
+      }
+    });
+
+    updateTotal();
+  </script>
+</body>
+</html>

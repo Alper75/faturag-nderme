@@ -67,8 +67,23 @@ function buildInvoicePayload(body) {
   const paymentPrice = body.paymentPrice || productsTotalPrice + totalVat
 
   const now = new Date()
-  const date = body.date || now.toLocaleDateString('tr-TR').replace(/\//g, '.')
-  const time = body.time || now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+  function formatDate(d) {
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = d.getFullYear()
+    return `${day}/${month}/${year}` // DD/MM/YYYY
+  }
+
+  function formatTime(d) {
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    const ss = String(d.getSeconds()).padStart(2, '0')
+    return `${hh}:${mm}:${ss}` // HH:mm:ss
+  }
+
+  const date = body.date || formatDate(now)
+  const time = body.time || formatTime(now)
 
   return {
     uuid: body.uuid,

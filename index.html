@@ -60,6 +60,16 @@
       <div class="border-b pb-4">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Fatura Bilgileri</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- YENİ: Tarih Seçici -->
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tarihi</label>
+            <input type="date" name="invoiceDate" id="invoiceDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <!-- YENİ: Saat Seçici -->
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Saati</label>
+            <input type="time" name="invoiceTime" id="invoiceTime" step="1" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tipi</label>
             <select name="invoiceType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -158,6 +168,23 @@
   </div>
 
   <script>
+    // Sayfa yüklenince tarih ve saat alanlarını doldur
+    document.addEventListener('DOMContentLoaded', function() {
+      const now = new Date();
+      
+      // Tarih formatı: YYYY-MM-DD (HTML date input için)
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      document.getElementById('invoiceDate').value = `${year}-${month}-${day}`;
+      
+      // Saat formatı: HH:mm:ss
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('invoiceTime').value = `${hours}:${minutes}:${seconds}`;
+    });
+
     function addProduct() {
       const container = document.getElementById('productsContainer');
       const template = container.querySelector('.product-item').cloneNode(true);
@@ -208,6 +235,10 @@
       const form = e.target;
       const formData = new FormData(form);
       
+      // Tarih ve saat değerlerini al
+      const invoiceDate = formData.get('invoiceDate');
+      const invoiceTime = formData.get('invoiceTime');
+      
       const products = [];
       document.querySelectorAll('.product-item').forEach(item => {
         const qty = parseFloat(item.querySelector('[name="productQuantity"]').value) || 0;
@@ -242,6 +273,9 @@
         currency: formData.get('currency'),
         autoSign: formData.get('autoSign') === 'true',
         note: formData.get('note') || undefined,
+        // YENİ: Tarih ve saat alanları
+        date: invoiceDate,
+        time: invoiceTime,
         products: products
       };
 

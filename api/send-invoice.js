@@ -59,6 +59,18 @@ function mapProducts(products) {
   })
 }
 
+// YENİ: HTML date input formatından (YYYY-MM-DD) GIB formatına çevirme
+function convertDateToGIBFormat(dateString) {
+  if (!dateString) return null;
+  
+  // HTML input: YYYY-MM-DD -> GIB: DD/MM/YYYY veya DD.MM.YYYY
+  const [year, month, day] = dateString.split('-');
+  
+  // Denenecek formatlar:
+  // return `${day}/${month}/${year}`;  // DD/MM/YYYY
+  return `${day}.${month}.${year}`;      // DD.MM.YYYY (GIB genelde bunu kullanır)
+}
+
 function buildInvoicePayload(body) {
   const products = mapProducts(body.products || [])
 
@@ -66,29 +78,18 @@ function buildInvoicePayload(body) {
   const totalVat = products.reduce((sum, p) => sum + (p.vatAmount || 0), 0)
   const paymentPrice = body.paymentPrice || productsTotalPrice + totalVat
 
-  const now = new Date()
-
-  function formatDate(d) {
-    const day = String(d.getDate()).padStart(2, '0')
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const year = d.getFullYear()
-    return `${day}/${month}/${year}` // DD/MM/YYYY
-  }
-
-  function formatTime(d) {
-    const hh = String(d.getHours()).padStart(2, '0')
-    const mm = String(d.getMinutes()).padStart(2, '0')
-    const ss = String(d.getSeconds()).padStart(2, '0')
-    return `${hh}:${mm}:${ss}` // HH:mm:ss
-  }
-
-  const date = body.date || formatDate(now)
-  const time = body.time || formatTime(now)
+  // YENİ: Tarih formatı dönüşümü
+  const rawDate = body.date;
+  const rawTime = body.time;
+  
+  // Eğer kullanıcı tarih seçtiyse onu kullan, yoksa bugünü kullan
+  const date = rawDate ? convertDateToGIBFormat(rawDate) : formatDate(new Date());
+  const time = rawTime || formatTime(new Date());
 
   return {
     uuid: body.uuid,
-    date,
-    time,
+    date,           // DD.MM.YYYY formatında
+    time,           // HH:mm:ss formatında
     invoiceType: INVOICE_TYPE_MAP[body.invoiceType] || InvoiceType.SATIS,
     currency: CURRENCY_MAP[body.currency] || EInvoiceCurrencyType.TURK_LIRASI,
     currencyRate: body.currencyRate || 1,
@@ -114,10 +115,25 @@ function buildInvoicePayload(body) {
 
     note: body.note,
     orderNumber: body.orderNumber,
-    orderDate: body.orderDate,
-    shipmentDate: body.shipmentDate,
+    orderDate: body.orderDate ? convertDateToGIBFormat(body.orderDate) : undefined,
+    shipmentDate: body.shipmentDate ? convertDateToGIBFormat(body.shipmentDate) : undefined,
     shipmentTime: body.shipmentTime
   }
+}
+
+// Yardımcı fonksiyonlar (eğer kullanıcı tarih seçmezse)
+function formatDate(d) {
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  return `${day}.${month}.${year}` // DD.MM.YYYY (nokta ile)
+}
+
+function formatTime(d) {
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
+  return `${hh}:${mm}:${ss}` // HH:mm:ss
 }
 
 module.exports = async function handler(req, res) {
@@ -181,6 +197,12 @@ module.exports = async function handler(req, res) {
     })
 
     const invoicePayload = buildInvoicePayload(body)
+    
+    // Debug: Payload'i konsola yazdir (TEST_MODE'da)
+    if (TEST_MODE === 'true') {
+      console.log('Invoice Payload:', JSON.stringify(invoicePayload, null, 2));
+    }
+
     const invoiceUUID = await EInvoice.createDraftInvoice(invoicePayload)
 
     let signResult = null
@@ -207,7 +229,9 @@ module.exports = async function handler(req, res) {
         success: false,
         error: 'GIB API Hatası',
         message: error.message,
-        errorCode: error.errorCode
+        errorCode: error.errorCode,
+        // Debug bilgisi
+        details: TEST_MODE === 'true' ? error.stack : undefined
       })
     }
 
@@ -215,14 +239,16 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({
         success: false,
         error: 'Doğrulama Hatası',
-        message: error.message
+        message: error.message,
+        details: TEST_MODE === 'true' ? error.stack : undefined
       })
     }
 
     return res.status(500).json({
       success: false,
       error: 'Internal Server Error',
-      message: error.message
+      message: error.message,
+      details: TEST_MODE === 'true' ? error.stack : undefined
     })
   }
 }

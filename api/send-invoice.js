@@ -68,7 +68,7 @@ function convertDateToGIBFormat(dateString) {
   
   // Denenecek formatlar:
   // return `${day}/${month}/${year}`;  // DD/MM/YYYY
-  return `${day}.${month}.${year}`;      // DD.MM.YYYY (GIB genelde bunu kullanır)
+  return `${day}/${month}/${year}`;      // DD.MM.YYYY (GIB genelde bunu kullanır)
 }
 
 function buildInvoicePayload(body) {

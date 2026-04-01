@@ -25,7 +25,15 @@ const UNIT_TYPE_MAP = {
   'LTR': EInvoiceUnitType.LT,
   'MTR': EInvoiceUnitType.METRE,
   'MTK': EInvoiceUnitType.METREKARE,
-  'MTQ': EInvoiceUnitType.METREKUP
+  'MTQ': EInvoiceUnitType.METREKUP,
+  'ADET': EInvoiceUnitType.ADET,
+  'PAKET': EInvoiceUnitType.PAKET,
+  'KUTU': EInvoiceUnitType.KUTU,
+  'TON': EInvoiceUnitType.TON,
+  'SAAT': EInvoiceUnitType.SAAT,
+  'GUN': EInvoiceUnitType.GUN,
+  'AY': EInvoiceUnitType.AY,
+  'YIL': EInvoiceUnitType.YIL
 }
 
 const CURRENCY_MAP = {
@@ -46,100 +54,234 @@ const WITHHOLDING_RATES = {
 };
 
 function convertDate(d) {
+  if (!d) {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
   const [year, month, day] = d.split('-');
   return `${day}.${month}.${year}`; // DD.MM.YYYY
 }
 
 function convertTime(t) {
+  if (!t) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  }
   return t; // HH:mm:ss zaten doğru formatta
 }
 
-function buildInvoicePayload(body) {
-  const products = body.products.map(p => {
+function mapProducts(products) {
+  return products.map(p => {
+    const quantity = parseFloat(p.quantity) || 0;
+    const unitPrice = parseFloat(p.unitPrice) || 0;
+    const vatRate = parseFloat(p.vatRate) || 0;
+    const discountRate = parseFloat(p.discountRate) || 0;
+    
+    // Temel hesaplamalar
+    const grossAmount = quantity * unitPrice; // Brüt tutar
+    const discountAmount = grossAmount * (discountRate / 100); // İskonto
+    const baseAmount = grossAmount - discountAmount; // Matrah (KDV'siz)
+    const vatAmount = baseAmount * (vatRate / 100); // KDV tutarı
+    const totalAmount = baseAmount + vatAmount; // Toplam (KDV dahil)
+    
+    // Tevkifat hesaplama
+    let withholdingRate = 0;
+    let withholdingAmount = 0;
+    if (p.withholdingCode && WITHHOLDING_RATES[p.withholdingCode]) {
+      withholdingRate = WITHHOLDING_RATES[p.withholdingCode];
+      withholdingAmount = vatAmount * (withholdingRate / 100);
+    }
+
     const unitType = UNIT_TYPE_MAP[p.unitType] || EInvoiceUnitType.ADET;
     
     return {
       name: p.name,
-      quantity: p.quantity,
+      quantity: quantity,
       unitType: unitType,
-      unitPrice: p.unitPrice,
-      price: p.unitPrice,
-      totalAmount: p.totalAmount,
-      vatRate: p.vatRate,
-      vatAmount: p.vatAmount,
-      discountRate: p.discountRate || 0,
-      discountAmount: p.discountAmount || 0,
+      unitPrice: unitPrice,
+      price: unitPrice,
+      vatRate: vatRate,
+      vatAmount: vatAmount,
+      discountRate: discountRate,
+      discountAmount: discountAmount,
+      totalAmount: baseAmount, // KDV hariç matrah
+      grossAmount: grossAmount,
+      netAmount: totalAmount, // KDV dahil
+      
       // Tevkifat bilgileri
-      withholdingCode: p.withholdingCode,
-      withholdingRate: p.withholdingRate || 0,
-      withholdingAmount: p.withholdingAmount || 0
+      withholdingCode: p.withholdingCode || undefined,
+      withholdingRate: withholdingRate,
+      withholdingAmount: withholdingAmount
     };
   });
+}
 
-  // Toplamlar
-  const productsTotalPrice = products.reduce((sum, p) => sum + p.totalAmount, 0);
-  const totalDiscount = products.reduce((sum, p) => sum + (p.discountAmount || 0), 0);
-  const totalVat = products.reduce((sum, p) => sum + p.vatAmount, 0);
+function buildInvoicePayload(body) {
+  console.log('=== buildInvoicePayload BAŞLADI ===');
+  console.log('Gelen body:', JSON.stringify(body, null, 2));
+
+  // Ürünleri map et
+  const mappedProducts = mapProducts(body.products || []);
+  console.log('Mapped products:', mappedProducts);
+
+  // Toplamlar - KDV HARİÇ (matrah)
+  const base = mappedProducts.reduce((sum, p) => sum + p.totalAmount, 0);
+  const productsTotalPrice = mappedProducts.reduce((sum, p) => sum + p.grossAmount, 0);
+  const totalDiscount = mappedProducts.reduce((sum, p) => sum + p.discountAmount, 0);
+  const totalVat = mappedProducts.reduce((sum, p) => sum + p.vatAmount, 0);
   
   // Tevkifat toplamları
-  const withholdingBase = products
-    .filter(p => p.withholdingCode)
-    .reduce((sum, p) => sum + p.totalAmount, 0);
-  const withholdingVat = products
+  const totalWithholding = mappedProducts
     .filter(p => p.withholdingCode)
     .reduce((sum, p) => sum + (p.withholdingAmount || 0), 0);
+  
+  const withholdingBase = mappedProducts
+    .filter(p => p.withholdingCode)
+    .reduce((sum, p) => sum + p.totalAmount, 0);
 
   // Stopaj hesaplama (vergi ekleme bölümünden)
   let stopajAmount = 0;
+  const taxTotals = {};
+  
   if (body.taxes && body.taxes.length > 0) {
     body.taxes.forEach(tax => {
-      if (tax.type === 'V0011') { // KV Stopaj
-        stopajAmount += productsTotalPrice * (tax.rate / 100);
+      if (tax.type === 'V0011') { // KV Stopaj - matrah üzerinden
+        const amount = base * (parseFloat(tax.rate) / 100);
+        stopajAmount += amount;
+        taxTotals['V0011'] = {
+          taxType: 'V0011',
+          rate: tax.rate,
+          amount: amount
+        };
       }
-      // GV Stopaj (V0003) için farklı hesaplama gerekebilir
+      if (tax.type === 'V0003') { // GV Stopaj
+        const amount = base * (parseFloat(tax.rate) / 100);
+        stopajAmount += amount;
+        taxTotals['V0003'] = {
+          taxType: 'V0003',
+          rate: tax.rate,
+          amount: amount
+        };
+      }
     });
   }
 
-  const grandTotal = productsTotalPrice + totalVat;
-  const payableTotal = grandTotal - withholdingVat - stopajAmount;
+  // Ödenecek tutar = Toplam - Tevkifat - Stopaj
+  const paymentPrice = (base + totalVat) - totalWithholding - stopajAmount;
+  
+  // Vergiler dahil toplam
+  const includedTaxesTotalPrice = base + totalVat;
 
-  return {
-    uuid: body.uuid,
-    date: convertDate(body.date),
-    time: body.time,
-    invoiceType: INVOICE_TYPE_MAP[body.invoiceType] || InvoiceType.SATIS,
+  console.log('Hesaplanan değerler:', {
+    base,
+    productsTotalPrice,
+    totalDiscount,
+    totalVat,
+    totalWithholding,
+    withholdingBase,
+    stopajAmount,
+    paymentPrice,
+    includedTaxesTotalPrice
+  });
+
+  // Tarih ve saat
+  const date = convertDate(body.date);
+  const time = convertTime(body.time);
+
+  // Fatura tipi
+  let invoiceType = INVOICE_TYPE_MAP[body.invoiceType] || InvoiceType.SATIS;
+  
+  // Eğer tevkifat varsa ve tip TEVKIFAT değilse, uyarı ver ama değiştirme
+  const hasWithholding = mappedProducts.some(p => p.withholdingCode);
+  if (hasWithholding && body.invoiceType !== 'TEVKIFAT') {
+    console.warn('UYARI: Tevkifat kodu var ama fatura tipi TEVKIFAT değil!');
+  }
+
+  const payload = {
+    // UUID - otomatik oluştur veya gelen değeri kullan
+    uuid: body.uuid || undefined,
+    
+    // Tarih/Saat
+    date: date,
+    time: time,
+    
+    // Fatura bilgileri
+    invoiceType: invoiceType,
     currency: CURRENCY_MAP[body.currency] || EInvoiceCurrencyType.TURK_LIRASI,
     currencyRate: 1,
     country: EInvoiceCountry.TURKIYE,
 
-    // Alıcı
-    buyerFirstName: body.buyerFirstName,
-    buyerLastName: body.buyerLastName,
-    buyerTitle: body.buyerTitle,
-    buyerTaxId: body.buyerTaxId, // GERÇEK VERGİ NO - 11111111111 DEĞİL!
-    buyerTaxOffice: body.buyerTaxOffice,
-    buyerEmail: body.buyerEmail,
-    buyerAddress: body.buyerAddress,
+    // Alıcı bilgileri
+    buyerFirstName: body.buyerFirstName || undefined,
+    buyerLastName: body.buyerLastName || undefined,
+    buyerTitle: body.buyerTitle || undefined,
+    buyerTaxId: body.buyerTaxId,
+    buyerTaxOffice: body.buyerTaxOffice || undefined,
+    buyerEmail: body.buyerEmail || undefined,
+    buyerPhoneNumber: body.buyerPhoneNumber || undefined,
+    buyerAddress: body.buyerAddress || undefined,
+    buyerCity: body.buyerCity || undefined,
+    buyerDistrict: body.buyerDistrict || undefined,
 
     // Ürünler
-    products,
-    productsTotalPrice,
-    totalDiscount,
-    totalVat,
-    
-    // Tevkifat
-    withholdingBase,
-    withholdingVat,
-    
-    // Stopaj (vergi tablosu olarak eklenecek)
-    taxes: body.taxes || [],
-    
-    // Toplamlar
-    grandTotal,
-    payableTotal,
+    products: mappedProducts.map(p => ({
+      name: p.name,
+      quantity: p.quantity,
+      unitType: p.unitType,
+      unitPrice: p.unitPrice,
+      price: p.price,
+      totalAmount: p.totalAmount, // KDV hariç
+      vatRate: p.vatRate,
+      vatAmount: p.vatAmount,
+      discountRate: p.discountRate,
+      discountAmount: p.discountAmount
+    })),
 
-    note: body.note
+    // ÖNEMLİ: Toplamlar - base (matrah) 0'dan büyük olmalı!
+    base: base, // MATRAH - KDV hariç toplam
+    productsTotalPrice: productsTotalPrice, // Brüt toplam
+    totalDiscount: totalDiscount,
+    totalVat: totalVat,
+    includedTaxesTotalPrice: includedTaxesTotalPrice, // KDV dahil toplam
+    paymentPrice: paymentPrice, // Ödenecek tutar
+
+    // Tevkifat bilgileri
+    withholdingBase: withholdingBase || undefined,
+    withholdingAmount: totalWithholding || undefined,
+    
+    // Not
+    note: body.note || undefined,
+    
+    // Ek alanlar
+    orderNumber: body.orderNumber || undefined,
+    orderDate: body.orderDate ? convertDate(body.orderDate) : undefined,
+    shipmentDate: body.shipmentDate ? convertDate(body.shipmentDate) : undefined,
+    shipmentTime: body.shipmentTime || undefined
   };
+
+  // Undefined değerleri temizle
+  Object.keys(payload).forEach(key => {
+    if (payload[key] === undefined) delete payload[key];
+  });
+  
+  // Products içindeki undefined değerleri de temizle
+  payload.products.forEach(p => {
+    Object.keys(p).forEach(key => {
+      if (p[key] === undefined) delete p[key];
+    });
+  });
+
+  console.log('=== OLUŞTURULAN PAYLOAD ===');
+  console.log(JSON.stringify(payload, null, 2));
+  console.log('base değeri:', payload.base, 'tipi:', typeof payload.base);
+
+  return payload;
 }
 
 module.exports = async function handler(req, res) {
@@ -164,12 +306,9 @@ module.exports = async function handler(req, res) {
 
   const body = req.body;
 
-  // DEBUG: Gelen veriyi logla
-  console.log('=== GELEN VERİ ===');
+  console.log('=== YENİ İSTEK ===');
   console.log('Vergi No:', body.buyerTaxId);
-  console.log('Fatura Tipi:', body.invoiceType);
   console.log('Ürün sayısı:', body.products?.length);
-  console.log('Vergiler:', body.taxes);
 
   // VALIDASYONLAR
   if (!body.buyerTaxId) {
@@ -179,11 +318,10 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // TEST VERGİ NO ENGELLEME
   if (body.buyerTaxId === '11111111111' || body.buyerTaxId === '11111111110') {
     return res.status(400).json({
       success: false,
-      error: 'Test vergi numarası (11111111111) kullanılamaz. Gerçek VKN/TCKN giriniz.'
+      error: 'Test vergi numarası kullanılamaz'
     });
   }
 
@@ -194,17 +332,21 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  if (!body.buyerFirstName && !body.buyerTitle) {
-    return res.status(400).json({
-      success: false,
-      error: 'Ad veya unvan girilmelidir'
-    });
+  // Ürün validasyonu
+  for (let i = 0; i < body.products.length; i++) {
+    const p = body.products[i];
+    if (!p.name || !p.unitPrice || p.quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Ürün ${i+1}: Ad, birim fiyat ve miktar zorunludur`
+      });
+    }
   }
 
   try {
     if (TEST_MODE === 'true') {
       EInvoice.setTestMode(true);
-      console.log('TEST MODU AKTİF');
+      console.log('TEST MODU');
     }
 
     await EInvoice.connect({
@@ -214,27 +356,35 @@ module.exports = async function handler(req, res) {
 
     const invoicePayload = buildInvoicePayload(body);
     
-    console.log('=== PAYLOAD ===');
-    console.log('Vergi No (Payload):', invoicePayload.buyerTaxId);
+    // Son kontrol - base değeri
+    if (!invoicePayload.base || invoicePayload.base <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Hesaplama hatası: Matrah (base) 0 veya hesaplanamadı',
+        details: {
+          products: body.products,
+          calculatedBase: invoicePayload.base
+        }
+      });
+    }
 
+    console.log('Fatura oluşturuluyor...');
     const invoiceUUID = await EInvoice.createDraftInvoice(invoicePayload);
-    console.log('Taslak oluşturuldu:', invoiceUUID);
+    console.log('UUID:', invoiceUUID);
 
     let signed = false;
     let signResult = null;
 
     if (body.autoSign) {
       try {
-        // Paketin imzalama metodunu bul
         const methods = Object.keys(EInvoice).filter(k => typeof EInvoice[k] === 'function');
-        console.log('Mevcut metodlar:', methods);
-        
         const signMethod = methods.find(m => 
           m.toLowerCase().includes('sign') || 
           m.toLowerCase().includes('approve')
         );
         
         if (signMethod) {
+          console.log('İmzalama metodu:', signMethod);
           signResult = await EInvoice[signMethod]({ uuid: invoiceUUID });
           signed = true;
         }
@@ -252,10 +402,9 @@ module.exports = async function handler(req, res) {
       data: {
         invoiceUUID,
         taxIdUsed: invoicePayload.buyerTaxId,
+        base: invoicePayload.base,
         signed,
-        signResult,
-        withholdingApplied: invoicePayload.withholdingVat > 0,
-        stopajApplied: (body.taxes || []).some(t => t.type === 'V0011')
+        signResult
       }
     });
 

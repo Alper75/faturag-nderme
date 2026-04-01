@@ -7,53 +7,50 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
-  <div class="container mx-auto px-4 py-8 max-w-4xl">
+  <div class="container mx-auto px-4 py-8 max-w-6xl">
     <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">E-Arşiv Fatura Gönderme</h1>
     
     <form id="invoiceForm" class="bg-white rounded-lg shadow-md p-6 space-y-6">
       <!-- ALICI BİLGİLERİ -->
       <div class="border-b pb-4">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Alıcı Bilgileri</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Ad</label>
-            <input type="text" name="buyerFirstName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <label class="block text-sm font-medium text-gray-600 mb-1">VKN/TCKN *</label>
+            <input type="text" name="buyerTaxId" id="buyerTaxId" required maxlength="11" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="12345678901">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Soyad</label>
-            <input type="text" name="buyerLastName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Unvan (Şirket için)</label>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Unvan</label>
             <input type="text" name="buyerTitle" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">TC/Vergi No *</label>
-            <input type="text" name="buyerTaxId" id="buyerTaxId" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="12345678901 veya 1234567890">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Dairesi</label>
+            <input type="text" name="buyerTaxOffice" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="MALTEPE">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Dairesi *</label>
-            <input type="text" name="buyerTaxOffice" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="MALTEPE">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Adı</label>
+            <input type="text" name="buyerFirstName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Soyadı</label>
+            <input type="text" name="buyerLastName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">E-posta</label>
             <input type="email" name="buyerEmail" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Telefon</label>
-            <input type="text" name="buyerPhoneNumber" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">İl</label>
-            <input type="text" name="buyerCity" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">İlçe</label>
-            <input type="text" name="buyerDistrict" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-600 mb-1">Adres</label>
             <textarea name="buyerAddress" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Ülke *</label>
+            <select name="country" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="Türkiye" selected>Türkiye</option>
+              <option value="Almanya">Almanya</option>
+              <option value="ABD">ABD</option>
+              <option value="Diğer">Diğer</option>
+            </select>
           </div>
         </div>
       </div>
@@ -61,139 +58,219 @@
       <!-- FATURA BİLGİLERİ -->
       <div class="border-b pb-4">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Fatura Bilgileri</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tarihi</label>
-            <input type="date" name="invoiceDate" id="invoiceDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tarihi *</label>
+            <input type="date" name="invoiceDate" id="invoiceDate" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Saati</label>
-            <input type="time" name="invoiceTime" id="invoiceTime" step="1" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Saati *</label>
+            <input type="time" name="invoiceTime" id="invoiceTime" step="1" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tipi</label>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tipi *</label>
             <select name="invoiceType" id="invoiceType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="SATIS">Satış</option>
-              <option value="TEVKIFAT">Tevkifatlı</option>
-              <option value="IADE">İade</option>
-              <option value="ISTISNA">İstisna</option>
-              <option value="OZEL_MATRAH">Özel Matrah</option>
-              <option value="IHRAC_KAYITLI">İhraç Kayıtlı</option>
+              <option value="SATIS">SATIŞ</option>
+              <option value="TEVKIFAT">TEVKİFAT</option>
+              <option value="IADE">İADE</option>
+              <option value="ISTISNA">İSTİSNA</option>
+              <option value="OZELMATRAH">ÖZEL MATRAH</option>
+              <option value="IHRACKAYITLI">İHRAÇ KAYITLI</option>
             </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Para Birimi</label>
             <select name="currency" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="TRY">TRY - Türk Lirası</option>
-              <option value="USD">USD - Amerikan Doları</option>
-              <option value="EUR">EUR - Euro</option>
-              <option value="GBP">GBP - İngiliz Sterlini</option>
+              <option value="TRY">TRY</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
             </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Otomatik İmzala</label>
-            <select name="autoSign" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="true">Evet</option>
-              <option value="false">Hayır</option>
-            </select>
-          </div>
-          <div class="md:col-span-3">
-            <label class="block text-sm font-medium text-gray-600 mb-1">Not</label>
-            <textarea name="note" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           </div>
         </div>
       </div>
 
-      <!-- TEVKİFAT/STOPAJ BİLGİLERİ -->
+      <!-- VERGİ EKLEME BÖLÜMÜ (Stopaj için) -->
       <div class="border-b pb-4 bg-yellow-50 p-4 rounded-lg">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Tevkifat & Stopaj Bilgileri</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Vergi Ekle (Stopaj)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">KDV Tevkifat Oranı (%)</label>
-            <select name="withholdingRate" id="withholdingRate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="0">Tevkifat Yok</option>
-              <option value="20">%20 (Yapım İşleri)</option>
-              <option value="40">%40 (Temizlik, Güvenlik)</option>
-              <option value="50">%50 (Danışmanlık, Eğitim)</option>
-              <option value="70">%70 (Mühendislik, Mimarlık)</option>
-              <option value="90">%90 (Diğer Hizmetler)</option>
-              <option value="100">%100 (Tam Tevkifat)</option>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Çeşidi</label>
+            <select id="taxTypeSelect" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Vergi Seçiniz</option>
+              <option value="V0011">V0011 - KV. STOPAJI</option>
+              <option value="V0003">V0003 - GV. STOPAJI</option>
             </select>
-            <p class="text-xs text-gray-500 mt-1">Tevkifat seçildiğinde fatura tipi otomatik "Tevkifatlı" olur</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Gelir Vergisi Stopaj Oranı (%)</label>
-            <select name="stopajRate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="0">Stopaj Yok</option>
-              <option value="20">%20 (Kira Geliri)</option>
-              <option value="17">%17 (Teknisyen, Makinist)</option>
-              <option value="15">%15 (Serbest Meslek)</option>
-              <option value="10">%10 (Diğer)</option>
-              <option value="5">%5</option>
-              <option value="3">%3</option>
-              <option value="1">%1</option>
-            </select>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Oran (%)</label>
+            <input type="number" id="taxRateInput" min="0" max="100" step="0.01" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Örn: 20">
+          </div>
+          <div>
+            <button type="button" onclick="addTax()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition w-full">Vergi Ekle</button>
           </div>
         </div>
+        <div id="addedTaxes" class="mt-4 space-y-2"></div>
       </div>
 
-      <!-- ÜRÜNLER -->
+      <!-- MAL/HİZMET BİLGİLERİ -->
       <div class="border-b pb-4">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold text-gray-700">Ürünler / Hizmetler</h2>
-          <button type="button" onclick="addProduct()" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition">+ Ürün Ekle</button>
+          <h2 class="text-xl font-semibold text-gray-700">Mal/Hizmet Bilgileri</h2>
+          <button type="button" onclick="addProduct()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">+ Satır Ekle</button>
         </div>
         <div id="productsContainer" class="space-y-4">
-          <div class="product-item bg-gray-50 p-4 rounded-md">
-            <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-600 mb-1">Ürün/Hizmet Adı *</label>
-                <input type="text" name="productName" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <!-- Ürün Satırı Template -->
+          <div class="product-item bg-gray-50 p-4 rounded-md border-2 border-transparent hover:border-blue-200 transition">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div class="md:col-span-3">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Mal/Hizmet *</label>
+                <input type="text" name="productName" required class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">Miktar *</label>
-                <input type="number" name="productQuantity" value="1" min="1" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <div class="md:col-span-1">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Miktar</label>
+                <input type="number" name="productQuantity" value="1" min="1" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">Birim Fiyat *</label>
-                <input type="number" name="productUnitPrice" step="0.01" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">Birim</label>
-                <select name="productUnitType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="ADET">Adet</option>
-                  <option value="PAKET">Paket</option>
-                  <option value="KUTU">Kutu</option>
-                  <option value="KG">Kg</option>
-                  <option value="LT">Lt</option>
-                  <option value="TON">Ton</option>
-                  <option value="M2">m²</option>
-                  <option value="M3">m³</option>
-                  <option value="SAAT">Saat</option>
-                  <option value="GUN">Gün</option>
-                  <option value="AY">Ay</option>
-                  <option value="YIL">Yıl</option>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Birim *</label>
+                <select name="productUnitType" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                  <option value="C62">Adet</option>
+                  <option value="DAY">Gün</option>
+                  <option value="HUR">Saat</option>
+                  <option value="KGM">kg</option>
+                  <option value="LTR">lt</option>
+                  <option value="MTR">m</option>
+                  <option value="MTK">m²</option>
+                  <option value="MTQ">m³</option>
                 </select>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">KDV %</label>
-                <select name="productVatRate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="0">%0</option>
-                  <option value="1">%1</option>
-                  <option value="10">%10</option>
-                  <option value="20" selected>%20</option>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Birim Fiyat</label>
+                <input type="number" name="productUnitPrice" step="0.01" required class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right">
+              </div>
+              <div class="md:col-span-1">
+                <label class="block text-xs font-medium text-gray-600 mb-1">KDV %</label>
+                <select name="productVatRate" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="10">10</option>
+                  <option value="20" selected>20</option>
                 </select>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-600 mb-1">İskonto %</label>
+                <input type="number" name="productDiscountRate" value="0" min="0" max="100" class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right">
+              </div>
+              <div class="md:col-span-1">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Tutar</label>
+                <span class="productTotal block text-sm font-semibold text-right py-1">0,00</span>
               </div>
             </div>
-            <button type="button" onclick="removeProduct(this)" class="mt-2 text-red-500 hover:text-red-700 text-sm">Sil</button>
+            
+            <!-- TEVKİFAT KODU - Her satır için ayrı -->
+            <div class="mt-3 pt-3 border-t border-gray-200">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Tevkifat Kodu</label>
+                  <select name="withholdingCode" class="w-full border border-gray-300 rounded px-2 py-1 text-sm withholding-code">
+                    <option value="">-----</option>
+                    <option value="601">601 - Yapım İşleri</option>
+                    <option value="602">602 - Etüt, Plan-Proje</option>
+                    <option value="603">603 - Makine Tadil/Bakım</option>
+                    <option value="604">604 - Yemek Servis</option>
+                    <option value="605">605 - Organizasyon</option>
+                    <option value="606">606 - İşgücü Temin</option>
+                    <option value="607">607 - Özel Güvenlik</option>
+                    <option value="608">608 - Yapı Denetim</option>
+                    <option value="609">609 - Fason Tekstil</option>
+                    <option value="610">610 - Turistik Mağaza</option>
+                    <option value="611">611 - Spor Kulübü</option>
+                    <option value="612">612 - Temizlik</option>
+                    <option value="613">613 - Çevre/Bahçe Bakım</option>
+                    <option value="614">614 - Servis Taşımacılığı</option>
+                    <option value="615">615 - Baskı/Basım</option>
+                    <option value="616">616 - Diğer Hizmetler</option>
+                    <option value="801">801 - Yapım (Eski)</option>
+                    <option value="802">802 - Etüt (Eski)</option>
+                    <option value="803">803 - Makine (Eski)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Tevkifat Oranı %</label>
+                  <input type="text" name="withholdingRate" readonly class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-100 text-right withholding-rate" value="0">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Tevkifat Tutarı</label>
+                  <span class="withholding-amount block text-sm font-semibold text-right py-1">0,00</span>
+                </div>
+              </div>
+            </div>
+            
+            <button type="button" onclick="removeProduct(this)" class="mt-2 text-red-500 hover:text-red-700 text-sm">Satır Sil</button>
           </div>
         </div>
       </div>
 
-      <!-- TOPLAM VE GÖNDER -->
+      <!-- TOPLAMLAR -->
+      <div class="border-b pb-4 bg-gray-50 p-4 rounded-lg">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Toplamlar</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Mal/Hizmet Toplam</span>
+            <div id="totalProducts" class="text-lg font-bold">0,00</div>
+          </div>
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Toplam İskonto</span>
+            <div id="totalDiscount" class="text-lg font-bold text-red-600">0,00</div>
+          </div>
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Hesaplanan KDV</span>
+            <div id="totalVat" class="text-lg font-bold">0,00</div>
+          </div>
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Vergiler Dahil Toplam</span>
+            <div id="grandTotal" class="text-lg font-bold text-blue-600">0,00</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mt-4 border-t pt-4">
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Tevkifata Tabi İşlem Tutarı</span>
+            <div id="withholdingBaseTotal" class="text-lg font-bold text-orange-600">0,00</div>
+          </div>
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Hesaplanan KDV TEVKİFAT</span>
+            <div id="withholdingVatTotal" class="text-lg font-bold text-orange-600">0,00</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mt-4 border-t pt-4" id="stopajSection" style="display: none;">
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Hesaplanan KV. STOPAJI</span>
+            <div id="stopajTotal" class="text-lg font-bold text-purple-600">0,00</div>
+          </div>
+          <div class="text-right">
+            <span class="text-sm text-gray-600">Ödenecek Tutar</span>
+            <div id="payableTotal" class="text-lg font-bold text-green-600">0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOT -->
+      <div class="border-b pb-4">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Not</label>
+        <textarea name="note" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+      </div>
+
+      <!-- BUTONLAR -->
       <div class="flex justify-between items-center">
-        <div id="totalDisplay" class="text-lg font-semibold text-gray-700"></div>
-        <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition font-semibold">Fatura Gönder</button>
+        <div class="text-sm text-gray-600">
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" name="autoSign" value="true" checked class="rounded">
+            <span>Otomatik İmzala</span>
+          </label>
+        </div>
+        <div class="space-x-4">
+          <button type="button" onclick="clearForm()" class="bg-gray-500 text-white px-6 py-3 rounded-md hover:bg-gray-600 transition">Temizle</button>
+          <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition font-semibold">Kaydet</button>
+        </div>
       </div>
     </form>
 
@@ -203,69 +280,223 @@
   </div>
 
   <script>
-    // Sayfa yüklenince tarih ve saat alanlarını doldur
+    // Tevkifat kodları ve oranları
+    const WITHHOLDING_RATES = {
+      '601': 70, '602': 50, '603': 70, '604': 50, '605': 50,
+      '606': 50, '607': 50, '608': 70, '609': 50, '610': 20,
+      '611': 20, '612': 40, '613': 40, '614': 50, '615': 50,
+      '616': 90, '617': 20, '618': 20, '619': 20, '620': 20,
+      '621': 20, '622': 20, '623': 20, '624': 50, '625': 20,
+      '626': 20, '627': 20, '801': 70, '802': 50, '803': 70
+    };
+
+    // Eklenen stopaj vergileri
+    let addedTaxes = [];
+
     document.addEventListener('DOMContentLoaded', function() {
       const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      document.getElementById('invoiceDate').value = `${year}-${month}-${day}`;
-      
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      document.getElementById('invoiceTime').value = `${hours}:${minutes}:${seconds}`;
+      document.getElementById('invoiceDate').value = now.toISOString().split('T')[0];
+      document.getElementById('invoiceTime').value = now.toTimeString().slice(0, 8);
+      updateCalculations();
     });
 
-    // Tevkifat seçildiğinde fatura tipini otomatik değiştir
-    document.getElementById('withholdingRate').addEventListener('change', function() {
-      const rate = parseFloat(this.value);
-      const invoiceType = document.getElementById('invoiceType');
-      if (rate > 0) {
-        invoiceType.value = 'TEVKIFAT';
+    function addTax() {
+      const type = document.getElementById('taxTypeSelect').value;
+      const rate = parseFloat(document.getElementById('taxRateInput').value) || 0;
+      
+      if (!type || rate <= 0) {
+        alert('Vergi çeşidi ve oran giriniz');
+        return;
       }
-    });
+
+      const taxNames = {
+        'V0011': 'KV. STOPAJI',
+        'V0003': 'GV. STOPAJI'
+      };
+
+      addedTaxes.push({ type, rate, name: taxNames[type] || type });
+      renderTaxes();
+      updateCalculations();
+      
+      // Reset inputs
+      document.getElementById('taxTypeSelect').value = '';
+      document.getElementById('taxRateInput').value = '';
+    }
+
+    function removeTax(index) {
+      addedTaxes.splice(index, 1);
+      renderTaxes();
+      updateCalculations();
+    }
+
+    function renderTaxes() {
+      const container = document.getElementById('addedTaxes');
+      container.innerHTML = addedTaxes.map((tax, i) => `
+        <div class="flex justify-between items-center bg-white p-2 rounded border">
+          <span class="text-sm font-medium">${tax.name} - %${tax.rate}</span>
+          <button type="button" onclick="removeTax(${i})" class="text-red-500 hover:text-red-700 text-sm">Sil</button>
+        </div>
+      `).join('');
+      
+      document.getElementById('stopajSection').style.display = addedTaxes.length > 0 ? 'grid' : 'none';
+    }
 
     function addProduct() {
       const container = document.getElementById('productsContainer');
       const template = container.querySelector('.product-item').cloneNode(true);
-      template.querySelectorAll('input').forEach(input => {
+      
+      // Clear values
+      template.querySelectorAll('input[type="text"], input[type="number"]').forEach(input => {
         if (input.name === 'productQuantity') input.value = '1';
-        else if (input.type !== 'number') input.value = '';
+        else if (input.name === 'productVatRate') input.value = '20';
+        else if (input.name === 'productDiscountRate') input.value = '0';
         else input.value = '';
       });
+      template.querySelector('.productTotal').textContent = '0,00';
+      template.querySelector('.withholding-rate').value = '0';
+      template.querySelector('.withholding-amount').textContent = '0,00';
+      template.querySelector('.withholding-code').value = '';
+      
       container.appendChild(template);
-      updateTotal();
+      attachListeners(template);
+      updateCalculations();
     }
 
     function removeProduct(btn) {
       const container = document.getElementById('productsContainer');
       if (container.children.length > 1) {
         btn.closest('.product-item').remove();
-        updateTotal();
+        updateCalculations();
       }
     }
 
-    function updateTotal() {
+    function attachListeners(item) {
+      item.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('input', updateCalculations);
+        el.addEventListener('change', updateCalculations);
+      });
+    }
+
+    function updateCalculations() {
       const items = document.querySelectorAll('.product-item');
-      let subtotal = 0;
+      let totalProducts = 0;
+      let totalDiscount = 0;
       let totalVat = 0;
+      let withholdingBase = 0;
+      let withholdingVat = 0;
 
       items.forEach(item => {
         const qty = parseFloat(item.querySelector('[name="productQuantity"]').value) || 0;
         const price = parseFloat(item.querySelector('[name="productUnitPrice"]').value) || 0;
         const vatRate = parseFloat(item.querySelector('[name="productVatRate"]').value) || 0;
-        const lineTotal = qty * price;
-        const lineVat = lineTotal * (vatRate / 100);
-        subtotal += lineTotal;
-        totalVat += lineVat;
+        const discountRate = parseFloat(item.querySelector('[name="productDiscountRate"]').value) || 0;
+        const whCode = item.querySelector('[name="withholdingCode"]').value;
+        
+        const gross = qty * price;
+        const discount = gross * (discountRate / 100);
+        const net = gross - discount;
+        const vat = net * (vatRate / 100);
+        
+        totalProducts += gross;
+        totalDiscount += discount;
+        totalVat += vat;
+        
+        // Tevkifat hesaplama
+        let whRate = 0;
+        let whAmount = 0;
+        if (whCode && WITHHOLDING_RATES[whCode]) {
+          whRate = WITHHOLDING_RATES[whCode];
+          whAmount = vat * (whRate / 100);
+          withholdingBase += net;
+          withholdingVat += whAmount;
+          
+          item.querySelector('.withholding-rate').value = whRate;
+          item.querySelector('.withholding-amount').textContent = whAmount.toLocaleString('tr-TR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
+        } else {
+          item.querySelector('.withholding-rate').value = '0';
+          item.querySelector('.withholding-amount').textContent = '0,00';
+        }
+        
+        item.querySelector('.productTotal').textContent = net.toLocaleString('tr-TR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
       });
 
-      document.getElementById('totalDisplay').innerHTML = 
-        `Ara Toplam: ${subtotal.toFixed(2)} | KDV: ${totalVat.toFixed(2)} | <strong>Toplam: ${(subtotal + totalVat).toFixed(2)}</strong>`;
+      const grandTotal = totalProducts - totalDiscount + totalVat;
+      
+      // Stopaj hesaplama
+      let stopajTotal = 0;
+      if (addedTaxes.length > 0) {
+        const base = totalProducts - totalDiscount;
+        addedTaxes.forEach(tax => {
+          if (tax.type === 'V0011') { // KV Stopaj
+            stopajTotal += base * (tax.rate / 100);
+          }
+        });
+      }
+      
+      const payableTotal = grandTotal - withholdingVat - stopajTotal;
+
+      // Update displays
+      document.getElementById('totalProducts').textContent = totalProducts.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      document.getElementById('totalDiscount').textContent = totalDiscount.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      document.getElementById('totalVat').textContent = totalVat.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      document.getElementById('grandTotal').textContent = grandTotal.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      document.getElementById('withholdingBaseTotal').textContent = withholdingBase.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      document.getElementById('withholdingVatTotal').textContent = withholdingVat.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      document.getElementById('stopajTotal').textContent = stopajTotal.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      document.getElementById('payableTotal').textContent = payableTotal.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
     }
 
-    document.getElementById('productsContainer').addEventListener('input', updateTotal);
+    function clearForm() {
+      if (confirm('Formu temizlemek istediğinize emin misiniz?')) {
+        document.getElementById('invoiceForm').reset();
+        addedTaxes = [];
+        renderTaxes();
+        
+        // Reset dates
+        const now = new Date();
+        document.getElementById('invoiceDate').value = now.toISOString().split('T')[0];
+        document.getElementById('invoiceTime').value = now.toTimeString().slice(0, 8);
+        
+        // Reset products
+        const container = document.getElementById('productsContainer');
+        container.innerHTML = '';
+        addProduct();
+        updateCalculations();
+      }
+    }
+
+    // Attach listeners to initial product
+    document.querySelectorAll('.product-item').forEach(attachListeners);
 
     document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -273,61 +504,73 @@
       const form = e.target;
       const formData = new FormData(form);
       
-      // Vergi no kontrolü - 11111111111 değil mi?
+      // Vergi no kontrolü
       const taxId = formData.get('buyerTaxId');
-      if (taxId === '11111111111') {
-        alert('UYARI: Test vergi numarası girdiniz! Gerçek vergi numarası kullanın.');
+      if (taxId === '11111111111' || taxId === '11111111110') {
+        alert('TEST vergi numarası kullanılamaz! Gerçek VKN/TCKN giriniz.');
         return;
       }
 
-      const invoiceDate = formData.get('invoiceDate');
-      const invoiceTime = formData.get('invoiceTime');
-      const withholdingRate = formData.get('withholdingRate');
-      const stopajRate = formData.get('stopajRate');
-      
       const products = [];
       document.querySelectorAll('.product-item').forEach(item => {
         const qty = parseFloat(item.querySelector('[name="productQuantity"]').value) || 0;
         const price = parseFloat(item.querySelector('[name="productUnitPrice"]').value) || 0;
         const vatRate = parseFloat(item.querySelector('[name="productVatRate"]').value) || 0;
-        const totalAmount = qty * price;
-        const vatAmount = totalAmount * (vatRate / 100);
-
-        products.push({
+        const discountRate = parseFloat(item.querySelector('[name="productDiscountRate"]').value) || 0;
+        const whCode = item.querySelector('[name="withholdingCode"]').value;
+        
+        const gross = qty * price;
+        const discount = gross * (discountRate / 100);
+        const net = gross - discount;
+        const vat = net * (vatRate / 100);
+        
+        const product = {
           name: item.querySelector('[name="productName"]').value,
           quantity: qty,
-          unitPrice: price,
           unitType: item.querySelector('[name="productUnitType"]').value,
+          unitPrice: price,
           vatRate: vatRate,
-          vatAmount: vatAmount,
-          totalAmount: totalAmount
-        });
+          vatAmount: vat,
+          discountRate: discountRate,
+          discountAmount: discount,
+          totalAmount: net,
+          withholdingCode: whCode || undefined,
+          withholdingRate: whCode ? (WITHHOLDING_RATES[whCode] || 0) : 0,
+          withholdingAmount: 0 // Hesaplanacak
+        };
+        
+        if (whCode) {
+          product.withholdingAmount = vat * (product.withholdingRate / 100);
+        }
+        
+        products.push(product);
       });
 
       const payload = {
+        buyerTaxId: taxId,
+        buyerTitle: formData.get('buyerTitle') || undefined,
         buyerFirstName: formData.get('buyerFirstName') || undefined,
         buyerLastName: formData.get('buyerLastName') || undefined,
-        buyerTitle: formData.get('buyerTitle') || undefined,
-        buyerTaxId: taxId,
-        buyerTaxOffice: formData.get('buyerTaxOffice'),
+        buyerTaxOffice: formData.get('buyerTaxOffice') || undefined,
         buyerEmail: formData.get('buyerEmail') || undefined,
-        buyerPhoneNumber: formData.get('buyerPhoneNumber') || undefined,
-        buyerCity: formData.get('buyerCity') || undefined,
-        buyerDistrict: formData.get('buyerDistrict') || undefined,
         buyerAddress: formData.get('buyerAddress') || undefined,
+        country: formData.get('country') || 'Türkiye',
+        
+        date: formData.get('invoiceDate'),
+        time: formData.get('invoiceTime'),
         invoiceType: formData.get('invoiceType'),
         currency: formData.get('currency'),
-        autoSign: formData.get('autoSign') === 'true',
+        
+        products: products,
+        taxes: addedTaxes, // Stopaj vergileri
         note: formData.get('note') || undefined,
-        date: invoiceDate,
-        time: invoiceTime,
-        withholdingRate: withholdingRate,
-        stopajRate: stopajRate,
-        products: products
+        autoSign: formData.get('autoSign') === 'true'
       };
 
       // Boş değerleri temizle
-      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) delete payload[key];
+      });
 
       const resultDiv = document.getElementById('result');
       const resultContent = document.getElementById('resultContent');
@@ -349,9 +592,8 @@
           resultContent.innerHTML = `
             <strong>Fatura Başarıyla Oluşturuldu!</strong><br>
             UUID: <code class="bg-green-200 px-2 py-1 rounded">${data.data.invoiceUUID}</code><br>
+            Belge No: ${data.data.documentNumber || '-'}<br>
             Kullanılan Vergi No: <strong>${data.data.taxIdUsed}</strong><br>
-            Tevkifat: %${data.data.withholdingRate || 0}<br>
-            Stopaj: %${data.data.stopajRate || 0}<br>
             İmzalandı: ${data.data.signed ? 'Evet' : 'Hayır'}
           `;
         } else {
@@ -368,7 +610,8 @@
       }
     });
 
-    updateTotal();
+    // İlk hesaplama
+    updateCalculations();
   </script>
 </body>
 </html>

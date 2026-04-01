@@ -9,279 +9,260 @@ const {
 } = require('e-fatura')
 
 const INVOICE_TYPE_MAP = {
-  SATIS: InvoiceType.SATIS,
-  IADE: InvoiceType.IADE,
-  TEVKIFAT: InvoiceType.TEVKIFAT,  // Tevkifatlı fatura tipi
-  ISTISNA: InvoiceType.ISTISNA,
-  OZEL_MATRAH: InvoiceType.OZEL_MATRAH,
-  IHRAC_KAYITLI: InvoiceType.IHRAC_KAYITLI
+  'SATIS': InvoiceType.SATIS,
+  'TEVKIFAT': InvoiceType.TEVKIFAT,
+  'IADE': InvoiceType.IADE,
+  'ISTISNA': InvoiceType.ISTISNA,
+  'OZELMATRAH': InvoiceType.OZEL_MATRAH,
+  'IHRACKAYITLI': InvoiceType.IHRAC_KAYITLI
 }
 
 const UNIT_TYPE_MAP = {
-  ADET: EInvoiceUnitType.ADET,
-  PAKET: EInvoiceUnitType.PAKET,
-  KUTU: EInvoiceUnitType.KUTU,
-  KG: EInvoiceUnitType.KG,
-  LT: EInvoiceUnitType.LT,
-  TON: EInvoiceUnitType.TON,
-  M2: EInvoiceUnitType.M2,
-  M3: EInvoiceUnitType.M3,
-  SAAT: EInvoiceUnitType.SAAT,
-  GUN: EInvoiceUnitType.GUN,
-  AY: EInvoiceUnitType.AY,
-  YIL: EInvoiceUnitType.YIL
+  'C62': EInvoiceUnitType.ADET,
+  'DAY': EInvoiceUnitType.GUN,
+  'HUR': EInvoiceUnitType.SAAT,
+  'KGM': EInvoiceUnitType.KG,
+  'LTR': EInvoiceUnitType.LT,
+  'MTR': EInvoiceUnitType.METRE,
+  'MTK': EInvoiceUnitType.METREKARE,
+  'MTQ': EInvoiceUnitType.METREKUP
 }
 
 const CURRENCY_MAP = {
-  TRY: EInvoiceCurrencyType.TURK_LIRASI,
-  USD: EInvoiceCurrencyType.AMERIKAN_DOLARI,
-  EUR: EInvoiceCurrencyType.EURO,
-  GBP: EInvoiceCurrencyType.INGILIZ_STERLINI
+  'TRY': EInvoiceCurrencyType.TURK_LIRASI,
+  'USD': EInvoiceCurrencyType.AMERIKAN_DOLARI,
+  'EUR': EInvoiceCurrencyType.EURO,
+  'GBP': EInvoiceCurrencyType.INGILIZ_STERLINI
 }
 
-function mapProducts(products, withholdingRate = 0) {
-  return products.map((item) => {
-    const totalAmount = item.totalAmount || item.quantity * item.unitPrice
-    const vatRate = item.vatRate || 0
-    const vatAmount = totalAmount * (vatRate / 100)
-    
-    // Tevkifat hesaplama (KDV'nin belirli oranı)
-    const withholdingAmount = withholdingRate > 0 ? (vatAmount * withholdingRate / 100) : 0
-    const netVatAmount = vatAmount - withholdingAmount
+// Tevkifat kodları ve oranları
+const WITHHOLDING_RATES = {
+  '601': 70, '602': 50, '603': 70, '604': 50, '605': 50,
+  '606': 50, '607': 50, '608': 70, '609': 50, '610': 20,
+  '611': 20, '612': 40, '613': 40, '614': 50, '615': 50,
+  '616': 90, '617': 20, '618': 20, '619': 20, '620': 20,
+  '621': 20, '622': 20, '623': 20, '624': 50, '625': 20,
+  '626': 20, '627': 20, '801': 70, '802': 50, '803': 70
+};
 
-    return {
-      name: item.name,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      price: item.unitPrice,
-      unitType: UNIT_TYPE_MAP[item.unitType] || EInvoiceUnitType.ADET,
-      totalAmount,
-      vatRate: vatRate,
-      vatAmount: netVatAmount, // Tevkifat sonrası KDV
-      withholdingRate: withholdingRate, // Tevkifat oranı
-      withholdingAmount: withholdingAmount, // Tevkifat tutarı
-      // Stopaj için ek alanlar
-      stopajRate: item.stopajRate || 0,
-      stopajAmount: item.stopajAmount || 0
-    }
-  })
-}
-
-function convertDateToGIBFormat(dateString) {
-  if (!dateString) return null;
-  const [year, month, day] = dateString.split('-');
+function convertDate(d) {
+  const [year, month, day] = d.split('-');
   return `${day}.${month}.${year}`; // DD.MM.YYYY
 }
 
+function convertTime(t) {
+  return t; // HH:mm:ss zaten doğru formatta
+}
+
 function buildInvoicePayload(body) {
-  const withholdingRate = parseFloat(body.withholdingRate) || 0
-  const stopajRate = parseFloat(body.stopajRate) || 0
-  
-  const products = mapProducts(body.products || [], withholdingRate)
+  const products = body.products.map(p => {
+    const unitType = UNIT_TYPE_MAP[p.unitType] || EInvoiceUnitType.ADET;
+    
+    return {
+      name: p.name,
+      quantity: p.quantity,
+      unitType: unitType,
+      unitPrice: p.unitPrice,
+      price: p.unitPrice,
+      totalAmount: p.totalAmount,
+      vatRate: p.vatRate,
+      vatAmount: p.vatAmount,
+      discountRate: p.discountRate || 0,
+      discountAmount: p.discountAmount || 0,
+      // Tevkifat bilgileri
+      withholdingCode: p.withholdingCode,
+      withholdingRate: p.withholdingRate || 0,
+      withholdingAmount: p.withholdingAmount || 0
+    };
+  });
 
-  const productsTotalPrice = products.reduce((sum, p) => sum + p.totalAmount, 0)
-  const totalVat = products.reduce((sum, p) => sum + (p.vatAmount || 0), 0)
-  const totalWithholding = products.reduce((sum, p) => sum + (p.withholdingAmount || 0), 0)
+  // Toplamlar
+  const productsTotalPrice = products.reduce((sum, p) => sum + p.totalAmount, 0);
+  const totalDiscount = products.reduce((sum, p) => sum + (p.discountAmount || 0), 0);
+  const totalVat = products.reduce((sum, p) => sum + p.vatAmount, 0);
   
-  // Stopaj hesaplama (matrah üzerinden)
-  const stopajAmount = stopajRate > 0 ? (productsTotalPrice * stopajRate / 100) : 0
-  
-  const paymentPrice = productsTotalPrice + totalVat
+  // Tevkifat toplamları
+  const withholdingBase = products
+    .filter(p => p.withholdingCode)
+    .reduce((sum, p) => sum + p.totalAmount, 0);
+  const withholdingVat = products
+    .filter(p => p.withholdingCode)
+    .reduce((sum, p) => sum + (p.withholdingAmount || 0), 0);
 
-  const now = new Date()
-  const date = body.date ? convertDateToGIBFormat(body.date) : formatDate(now)
-  const time = body.time || formatTime(now)
-
-  // Fatura tipi: Eğer tevkifat varsa TEVKIFAT, yoksa seçilen tip
-  let invoiceType = INVOICE_TYPE_MAP[body.invoiceType] || InvoiceType.SATIS
-  if (withholdingRate > 0 && body.invoiceType !== 'TEVKIFAT') {
-    invoiceType = InvoiceType.TEVKIFAT
+  // Stopaj hesaplama (vergi ekleme bölümünden)
+  let stopajAmount = 0;
+  if (body.taxes && body.taxes.length > 0) {
+    body.taxes.forEach(tax => {
+      if (tax.type === 'V0011') { // KV Stopaj
+        stopajAmount += productsTotalPrice * (tax.rate / 100);
+      }
+      // GV Stopaj (V0003) için farklı hesaplama gerekebilir
+    });
   }
+
+  const grandTotal = productsTotalPrice + totalVat;
+  const payableTotal = grandTotal - withholdingVat - stopajAmount;
 
   return {
     uuid: body.uuid,
-    date,
-    time,
-    invoiceType: invoiceType,
+    date: convertDate(body.date),
+    time: body.time,
+    invoiceType: INVOICE_TYPE_MAP[body.invoiceType] || InvoiceType.SATIS,
     currency: CURRENCY_MAP[body.currency] || EInvoiceCurrencyType.TURK_LIRASI,
-    currencyRate: body.currencyRate || 1,
+    currencyRate: 1,
     country: EInvoiceCountry.TURKIYE,
 
-    // ALICI BİLGİLERİ - VERGİ NO KONTROLÜ
+    // Alıcı
     buyerFirstName: body.buyerFirstName,
     buyerLastName: body.buyerLastName,
     buyerTitle: body.buyerTitle,
-    buyerTaxId: body.buyerTaxId, // KESİNLİKLE 11111111111 OLMAYACAK
-    buyerTaxOffice: body.buyerTaxOffice, // ZORUNLU
+    buyerTaxId: body.buyerTaxId, // GERÇEK VERGİ NO - 11111111111 DEĞİL!
+    buyerTaxOffice: body.buyerTaxOffice,
     buyerEmail: body.buyerEmail,
-    buyerPhoneNumber: body.buyerPhoneNumber,
     buyerAddress: body.buyerAddress,
-    buyerCity: body.buyerCity,
-    buyerDistrict: body.buyerDistrict,
 
-    // ÜRÜNLER
+    // Ürünler
     products,
     productsTotalPrice,
-    includedTaxesTotalPrice: paymentPrice,
+    totalDiscount,
     totalVat,
-    paymentPrice,
-    base: productsTotalPrice,
-
-    // TEVKİFAT BİLGİLERİ
-    withholdingRate: withholdingRate,
-    withholdingAmount: totalWithholding,
     
-    // STOPAJ BİLGİLERİ
-    stopajRate: stopajRate,
-    stopajAmount: stopajAmount,
+    // Tevkifat
+    withholdingBase,
+    withholdingVat,
+    
+    // Stopaj (vergi tablosu olarak eklenecek)
+    taxes: body.taxes || [],
+    
+    // Toplamlar
+    grandTotal,
+    payableTotal,
 
-    note: body.note,
-    orderNumber: body.orderNumber,
-    orderDate: body.orderDate ? convertDateToGIBFormat(body.orderDate) : undefined,
-    shipmentDate: body.shipmentDate ? convertDateToGIBFormat(body.shipmentDate) : undefined,
-    shipmentTime: body.shipmentTime
-  }
-}
-
-function formatDate(d) {
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const year = d.getFullYear()
-  return `${day}.${month}.${year}`
-}
-
-function formatTime(d) {
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
-  const ss = String(d.getSeconds()).padStart(2, '0')
-  return `${hh}:${mm}:${ss}`
+    note: body.note
+  };
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Content-Type', 'application/json');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
-    return res.status(405).json({
-      success: false,
-      error: 'Method not allowed. Use POST.'
-    })
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  const { GIB_USERNAME, GIB_PASSWORD, TEST_MODE } = process.env
+  const { GIB_USERNAME, GIB_PASSWORD, TEST_MODE } = process.env;
 
   if (!GIB_USERNAME || !GIB_PASSWORD) {
     return res.status(500).json({
       success: false,
-      error: 'GIB credentials not configured.'
-    })
+      error: 'GIB credentials not configured'
+    });
   }
 
-  const body = req.body
-  
-  // DEBUG: Gelen veriyi kontrol et
-  console.log('Gelen veri:', JSON.stringify(body, null, 2))
-  console.log('Vergi No:', body.buyerTaxId)
+  const body = req.body;
 
-  // VERGİ NO KONTROLÜ - 11111111111 DEĞİLSE DEVAM ET
-  if (body.buyerTaxId === '11111111111' || !body.buyerTaxId) {
-    console.warn('UYARI: Test vergi numarası veya boş vergi numarası tespit edildi!')
-  }
+  // DEBUG: Gelen veriyi logla
+  console.log('=== GELEN VERİ ===');
+  console.log('Vergi No:', body.buyerTaxId);
+  console.log('Fatura Tipi:', body.invoiceType);
+  console.log('Ürün sayısı:', body.products?.length);
+  console.log('Vergiler:', body.taxes);
 
-  if (!body || !body.products || body.products.length === 0) {
+  // VALIDASYONLAR
+  if (!body.buyerTaxId) {
     return res.status(400).json({
       success: false,
-      error: 'products array is required.'
-    })
+      error: 'buyerTaxId (VKN/TCKN) zorunludur'
+    });
+  }
+
+  // TEST VERGİ NO ENGELLEME
+  if (body.buyerTaxId === '11111111111' || body.buyerTaxId === '11111111110') {
+    return res.status(400).json({
+      success: false,
+      error: 'Test vergi numarası (11111111111) kullanılamaz. Gerçek VKN/TCKN giriniz.'
+    });
+  }
+
+  if (!body.products || body.products.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'En az bir ürün/hizmet eklemelisiniz'
+    });
   }
 
   if (!body.buyerFirstName && !body.buyerTitle) {
     return res.status(400).json({
       success: false,
-      error: 'buyerFirstName or buyerTitle is required.'
-    })
-  }
-
-  if (!body.buyerTaxId) {
-    return res.status(400).json({
-      success: false,
-      error: 'buyerTaxId (TC/Vergi No) is required.'
-    })
-  }
-
-  // Vergi dairesi zorunlu (özellikle tevkifatlı faturalarda)
-  if (!body.buyerTaxOffice) {
-    return res.status(400).json({
-      success: false,
-      error: 'buyerTaxOffice (Vergi Dairesi) is required for withholding invoices.'
-    })
+      error: 'Ad veya unvan girilmelidir'
+    });
   }
 
   try {
     if (TEST_MODE === 'true') {
-      EInvoice.setTestMode(true)
-      console.log('TEST MODU AKTİF')
+      EInvoice.setTestMode(true);
+      console.log('TEST MODU AKTİF');
     }
 
     await EInvoice.connect({
       username: GIB_USERNAME,
       password: GIB_PASSWORD
-    })
+    });
 
-    const invoicePayload = buildInvoicePayload(body)
+    const invoicePayload = buildInvoicePayload(body);
     
-    // DEBUG: Oluşturulan payload'ı kontrol et
-    console.log('Invoice Payload:', JSON.stringify(invoicePayload, null, 2))
-    console.log('Payload Vergi No:', invoicePayload.buyerTaxId)
+    console.log('=== PAYLOAD ===');
+    console.log('Vergi No (Payload):', invoicePayload.buyerTaxId);
 
-    const invoiceUUID = await EInvoice.createDraftInvoice(invoicePayload)
-    console.log('Taslak oluşturuldu:', invoiceUUID)
+    const invoiceUUID = await EInvoice.createDraftInvoice(invoicePayload);
+    console.log('Taslak oluşturuldu:', invoiceUUID);
 
-    let signResult = null
-    let signed = false
-    
-    if (body.autoSign !== false) {
+    let signed = false;
+    let signResult = null;
+
+    if (body.autoSign) {
       try {
-        const methods = Object.keys(EInvoice).filter(k => typeof EInvoice[k] === 'function')
-        console.log('Mevcut metodlar:', methods)
+        // Paketin imzalama metodunu bul
+        const methods = Object.keys(EInvoice).filter(k => typeof EInvoice[k] === 'function');
+        console.log('Mevcut metodlar:', methods);
         
         const signMethod = methods.find(m => 
           m.toLowerCase().includes('sign') || 
           m.toLowerCase().includes('approve')
-        )
+        );
         
         if (signMethod) {
-          signResult = await EInvoice[signMethod]({ uuid: invoiceUUID })
-          signed = true
+          signResult = await EInvoice[signMethod]({ uuid: invoiceUUID });
+          signed = true;
         }
       } catch (signError) {
-        console.error('İmzalama hatası:', signError)
-        signResult = { error: signError.message }
+        console.error('İmzalama hatası:', signError);
+        signResult = { error: signError.message };
       }
     }
 
-    await EInvoice.logout()
+    await EInvoice.logout();
 
     return res.status(200).json({
       success: true,
-      message: 'Fatura oluşturuldu.',
+      message: signed ? 'Fatura oluşturuldu ve imzalandı' : 'Fatura taslak olarak oluşturuldu',
       data: {
         invoiceUUID,
+        taxIdUsed: invoicePayload.buyerTaxId,
         signed,
-        taxIdUsed: invoicePayload.buyerTaxId, // Hangi vergi no kullanıldığını göster
-        withholdingRate: invoicePayload.withholdingRate,
-        stopajRate: invoicePayload.stopajRate,
-        signResult
+        signResult,
+        withholdingApplied: invoicePayload.withholdingVat > 0,
+        stopajApplied: (body.taxes || []).some(t => t.type === 'V0011')
       }
-    })
+    });
+
   } catch (error) {
-    try { await EInvoice.logout() } catch (_) {}
+    try { await EInvoice.logout(); } catch (_) {}
+
+    console.error('HATA:', error);
 
     if (error instanceof EInvoiceApiError) {
       return res.status(400).json({
@@ -289,7 +270,7 @@ module.exports = async function handler(req, res) {
         error: 'GIB API Hatası',
         message: error.message,
         errorCode: error.errorCode
-      })
+      });
     }
 
     if (error instanceof EInvoiceTypeError) {
@@ -297,13 +278,13 @@ module.exports = async function handler(req, res) {
         success: false,
         error: 'Doğrulama Hatası',
         message: error.message
-      })
+      });
     }
 
     return res.status(500).json({
       success: false,
-      error: 'Internal Server Error',
+      error: 'Sunucu Hatası',
       message: error.message
-    })
+    });
   }
-}
+};

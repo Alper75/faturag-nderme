@@ -11,6 +11,7 @@
     <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">E-Arşiv Fatura Gönderme</h1>
     
     <form id="invoiceForm" class="bg-white rounded-lg shadow-md p-6 space-y-6">
+      <!-- ALICI BİLGİLERİ -->
       <div class="border-b pb-4">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Alıcı Bilgileri</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -28,11 +29,11 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">TC/Vergi No *</label>
-            <input type="text" name="buyerTaxId" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="text" name="buyerTaxId" id="buyerTaxId" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="12345678901 veya 1234567890">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Dairesi</label>
-            <input type="text" name="buyerTaxOffice" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Dairesi *</label>
+            <input type="text" name="buyerTaxOffice" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="MALTEPE">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">E-posta</label>
@@ -57,25 +58,24 @@
         </div>
       </div>
 
+      <!-- FATURA BİLGİLERİ -->
       <div class="border-b pb-4">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Fatura Bilgileri</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- YENİ: Tarih Seçici -->
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tarihi</label>
             <input type="date" name="invoiceDate" id="invoiceDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
-          <!-- YENİ: Saat Seçici -->
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Saati</label>
             <input type="time" name="invoiceTime" id="invoiceTime" step="1" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tipi</label>
-            <select name="invoiceType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select name="invoiceType" id="invoiceType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="SATIS">Satış</option>
+              <option value="TEVKIFAT">Tevkifatlı</option>
               <option value="IADE">İade</option>
-              <option value="TEVKIFAT">Tevkifat</option>
               <option value="ISTISNA">İstisna</option>
               <option value="OZEL_MATRAH">Özel Matrah</option>
               <option value="IHRAC_KAYITLI">İhraç Kayıtlı</option>
@@ -104,6 +104,40 @@
         </div>
       </div>
 
+      <!-- TEVKİFAT/STOPAJ BİLGİLERİ -->
+      <div class="border-b pb-4 bg-yellow-50 p-4 rounded-lg">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Tevkifat & Stopaj Bilgileri</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">KDV Tevkifat Oranı (%)</label>
+            <select name="withholdingRate" id="withholdingRate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="0">Tevkifat Yok</option>
+              <option value="20">%20 (Yapım İşleri)</option>
+              <option value="40">%40 (Temizlik, Güvenlik)</option>
+              <option value="50">%50 (Danışmanlık, Eğitim)</option>
+              <option value="70">%70 (Mühendislik, Mimarlık)</option>
+              <option value="90">%90 (Diğer Hizmetler)</option>
+              <option value="100">%100 (Tam Tevkifat)</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Tevkifat seçildiğinde fatura tipi otomatik "Tevkifatlı" olur</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Gelir Vergisi Stopaj Oranı (%)</label>
+            <select name="stopajRate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="0">Stopaj Yok</option>
+              <option value="20">%20 (Kira Geliri)</option>
+              <option value="17">%17 (Teknisyen, Makinist)</option>
+              <option value="15">%15 (Serbest Meslek)</option>
+              <option value="10">%10 (Diğer)</option>
+              <option value="5">%5</option>
+              <option value="3">%3</option>
+              <option value="1">%1</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ÜRÜNLER -->
       <div class="border-b pb-4">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-semibold text-gray-700">Ürünler / Hizmetler</h2>
@@ -156,6 +190,7 @@
         </div>
       </div>
 
+      <!-- TOPLAM VE GÖNDER -->
       <div class="flex justify-between items-center">
         <div id="totalDisplay" class="text-lg font-semibold text-gray-700"></div>
         <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition font-semibold">Fatura Gönder</button>
@@ -171,18 +206,24 @@
     // Sayfa yüklenince tarih ve saat alanlarını doldur
     document.addEventListener('DOMContentLoaded', function() {
       const now = new Date();
-      
-      // Tarih formatı: YYYY-MM-DD (HTML date input için)
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
       document.getElementById('invoiceDate').value = `${year}-${month}-${day}`;
       
-      // Saat formatı: HH:mm:ss
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
       document.getElementById('invoiceTime').value = `${hours}:${minutes}:${seconds}`;
+    });
+
+    // Tevkifat seçildiğinde fatura tipini otomatik değiştir
+    document.getElementById('withholdingRate').addEventListener('change', function() {
+      const rate = parseFloat(this.value);
+      const invoiceType = document.getElementById('invoiceType');
+      if (rate > 0) {
+        invoiceType.value = 'TEVKIFAT';
+      }
     });
 
     function addProduct() {
@@ -224,9 +265,6 @@
         `Ara Toplam: ${subtotal.toFixed(2)} | KDV: ${totalVat.toFixed(2)} | <strong>Toplam: ${(subtotal + totalVat).toFixed(2)}</strong>`;
     }
 
-    document.querySelectorAll('#productsContainer').forEach(container => {
-      container.addEventListener('input', updateTotal);
-    });
     document.getElementById('productsContainer').addEventListener('input', updateTotal);
 
     document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
@@ -235,9 +273,17 @@
       const form = e.target;
       const formData = new FormData(form);
       
-      // Tarih ve saat değerlerini al
+      // Vergi no kontrolü - 11111111111 değil mi?
+      const taxId = formData.get('buyerTaxId');
+      if (taxId === '11111111111') {
+        alert('UYARI: Test vergi numarası girdiniz! Gerçek vergi numarası kullanın.');
+        return;
+      }
+
       const invoiceDate = formData.get('invoiceDate');
       const invoiceTime = formData.get('invoiceTime');
+      const withholdingRate = formData.get('withholdingRate');
+      const stopajRate = formData.get('stopajRate');
       
       const products = [];
       document.querySelectorAll('.product-item').forEach(item => {
@@ -262,8 +308,8 @@
         buyerFirstName: formData.get('buyerFirstName') || undefined,
         buyerLastName: formData.get('buyerLastName') || undefined,
         buyerTitle: formData.get('buyerTitle') || undefined,
-        buyerTaxId: formData.get('buyerTaxId'),
-        buyerTaxOffice: formData.get('buyerTaxOffice') || undefined,
+        buyerTaxId: taxId,
+        buyerTaxOffice: formData.get('buyerTaxOffice'),
         buyerEmail: formData.get('buyerEmail') || undefined,
         buyerPhoneNumber: formData.get('buyerPhoneNumber') || undefined,
         buyerCity: formData.get('buyerCity') || undefined,
@@ -273,19 +319,21 @@
         currency: formData.get('currency'),
         autoSign: formData.get('autoSign') === 'true',
         note: formData.get('note') || undefined,
-        // YENİ: Tarih ve saat alanları
         date: invoiceDate,
         time: invoiceTime,
+        withholdingRate: withholdingRate,
+        stopajRate: stopajRate,
         products: products
       };
 
+      // Boş değerleri temizle
       Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
       const resultDiv = document.getElementById('result');
       const resultContent = document.getElementById('resultContent');
       resultDiv.classList.remove('hidden');
       resultContent.className = 'p-4 rounded-md bg-yellow-100 text-yellow-800';
-      resultContent.innerHTML = 'Fatura gönderiliyor...';
+      resultContent.innerHTML = 'Fatura gönderiliyor...<br>Vergi No: ' + taxId;
 
       try {
         const response = await fetch('/api/send-invoice', {
@@ -301,6 +349,9 @@
           resultContent.innerHTML = `
             <strong>Fatura Başarıyla Oluşturuldu!</strong><br>
             UUID: <code class="bg-green-200 px-2 py-1 rounded">${data.data.invoiceUUID}</code><br>
+            Kullanılan Vergi No: <strong>${data.data.taxIdUsed}</strong><br>
+            Tevkifat: %${data.data.withholdingRate || 0}<br>
+            Stopaj: %${data.data.stopajRate || 0}<br>
             İmzalandı: ${data.data.signed ? 'Evet' : 'Hayır'}
           `;
         } else {

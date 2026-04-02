@@ -102,7 +102,12 @@ function round2(n) {
 // ─── Ana fatura veri oluşturma ─────────────────────────────────────────────────
 
 function buildInvoiceData(body) {
-  console.log('=== buildInvoiceData başladı ===');
+  console.log('Fatura verisi:', JSON.stringify({
+  faturaTipi: invoiceData.faturaTipi,
+  matrah,
+  hesaplananKDV,
+  odenecekTutar
+}, null, 2));
 
   // ── Ürün satırları ──────────────────────────────────────────────────────────
   const malHizmetTable = body.products.map((p, index) => {

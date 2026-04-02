@@ -338,18 +338,17 @@
 
   <script>
     // ── Sabitler ───────────────────────────────────────────────────────────────
-    // KDV tevkifat oranları (KDV'nin yüzdesi)
-    // Örn: 625 → 30 demek, hesaplanan KDV'nin %30'u tevkif edilir
     const WITHHOLDING_RATES = {
       '601': 70, '602': 50, '603': 70, '604': 50, '605': 50,
       '606': 50, '607': 50, '608': 70, '609': 50, '610': 20,
       '611': 20, '612': 40, '613': 40, '614': 50, '615': 50,
       '616': 90, '617': 20, '618': 20, '619': 20, '620': 20,
-      '622': 20, '623': 20, '624': 50, '625': 30,  // Ticari Reklam %30
+      '622': 20, '623': 20, '624': 50, '625': 30,
       '626': 20, '627': 20, '801': 70, '802': 50, '803': 70
     };
 
     let addedTaxes = [];
+    let lastInvoiceUUID = null; // Son oluşturulan fatura UUID'si
 
     // ── Init ───────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
@@ -402,7 +401,7 @@
         else if (!i.classList.contains('withholding-rate-input')) i.value = '';
       });
       tpl.querySelector('select[name="withholdingCode"]').value = '';
-      tpl.querySelector('select[name="productVatRate"]') && (tpl.querySelector('select[name="productVatRate"]').value = '20');
+      tpl.querySelector('select[name="productVatRate"]').value = '20';
       tpl.querySelector('.productTotal').textContent = '0,00';
       tpl.querySelector('.productVatAmount').textContent = '0,00';
       tpl.querySelector('.withholding-rate').textContent = '0';
@@ -429,9 +428,7 @@
     }
 
     // ── Hesaplamalar ──────────────────────────────────────────────────────────
-      function updateCalculations() {
-      const items = document.querySelectorAll('.product-item');
-      if (items.length === 0) return;
+    function updateCalculations() {
       let totalProducts = 0, totalDiscount = 0, totalVat = 0;
       let withholdingBase = 0, withholdingVat = 0;
 
@@ -445,14 +442,13 @@
 
         const gross    = qty * price;
         const discount = gross * (discRate / 100);
-        const net      = gross - discount;        // KDV matrahı
+        const net      = gross - discount;
         const vat      = net  * (vatRate / 100);
 
         totalProducts += gross;
         totalDiscount += discount;
         totalVat      += vat;
 
-        // KDV Tevkifat
         const whRate   = whCode ? (WITHHOLDING_RATES[whCode] || 0) : 0;
         const whAmount = whCode ? vat * (whRate / 100) : 0;
 
@@ -472,15 +468,11 @@
       });
 
       const grandTotal = totalProducts - totalDiscount + totalVat;
-
-      // Stopaj
       let stopajTotal = 0;
       const matrah = totalProducts - totalDiscount;
       addedTaxes.forEach(tax => { stopajTotal += matrah * (tax.rate / 100); });
-
       const payable = grandTotal - withholdingVat - stopajTotal;
 
-      // DOM güncelle
       document.getElementById('totalProducts').textContent      = fmt(totalProducts) + ' ₺';
       document.getElementById('totalDiscount').textContent      = fmt(totalDiscount) + ' ₺';
       document.getElementById('totalVat').textContent           = fmt(totalVat) + ' ₺';
@@ -492,10 +484,10 @@
       document.getElementById('payableTotalSimple').textContent = fmt(payable) + ' ₺';
     }
 
-      function fmt(n) {
-          if (n === undefined || n === null || isNaN(n)) return "0,00";
-          return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
+    function fmt(n) {
+      if (n === undefined || n === null || isNaN(n)) return "0,00";
+      return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     // ── Form temizle ──────────────────────────────────────────────────────────
     function clearForm() {
@@ -516,6 +508,93 @@
       });
       updateCalculations();
       document.getElementById('result').classList.add('hidden');
+      lastInvoiceUUID = null;
+    }
+
+    // ── Fatura Görüntüleme Fonksiyonları ───────────────────────────────────────
+    async function viewInvoice(uuid) {
+      if (!uuid) {
+        alert('Fatura UUID bulunamadı!');
+        return;
+      }
+      
+      try {
+        const resp = await fetch('/api/get-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uuid, type: 'html' })
+        });
+        
+        if (!resp.ok) {
+          const err = await resp.json();
+          alert('Hata: ' + (err.message || 'Fatura görüntülenemedi'));
+          return;
+        }
+        
+        const html = await resp.text();
+        const win = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+        win.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <title>E-Arşiv Fatura - ${uuid}</title>
+              <style>
+                body { margin: 0; font-family: Arial, sans-serif; }
+                .toolbar { 
+                  position: sticky; 
+                  top: 0; 
+                  background: #f3f4f6; 
+                  padding: 15px; 
+                  border-bottom: 1px solid #ddd;
+                  display: flex;
+                  gap: 10px;
+                  align-items: center;
+                  z-index: 1000;
+                }
+                .toolbar button {
+                  padding: 8px 16px;
+                  border: none;
+                  border-radius: 4px;
+                  cursor: pointer;
+                  font-size: 14px;
+                }
+                .btn-print { background: #3b82f6; color: white; }
+                .btn-close { background: #6b7280; color: white; }
+                .content { padding: 20px; }
+                @media print {
+                  .toolbar { display: none; }
+                  .content { padding: 0; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="toolbar">
+                <button class="btn-print" onclick="window.print()">🖨️ Yazdır / PDF Kaydet</button>
+                <button class="btn-close" onclick="window.close()">✕ Kapat</button>
+                <span style="margin-left: auto; color: #666; font-size: 12px;">UUID: ${uuid}</span>
+              </div>
+              <div class="content">
+                ${html}
+              </div>
+            </body>
+          </html>
+        `);
+        win.document.close();
+        
+      } catch (err) {
+        alert('Bağlantı hatası: ' + err.message);
+      }
+    }
+
+    async function downloadPDF(uuid) {
+      if (!uuid) {
+        alert('Fatura UUID bulunamadı!');
+        return;
+      }
+      
+      // PDF görüntüleme penceresi aç (tarayıcı PDF olarak kaydedebilir)
+      viewInvoice(uuid);
     }
 
     // ── Form gönder ───────────────────────────────────────────────────────────
@@ -578,7 +657,6 @@
         note:            formData.get('note') || undefined
       };
 
-      // Boş değerleri temizle
       Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
 
       const resultDiv     = document.getElementById('result');
@@ -596,24 +674,43 @@
         const data = await resp.json();
 
         if (data.success) {
+          lastInvoiceUUID = data.data.invoiceUUID;
           const t = data.data.totals || {};
           resultContent.className = 'p-6 rounded-lg bg-green-100 text-green-800';
           resultContent.innerHTML = `
             <div class="font-bold text-lg mb-3">✅ Fatura Başarıyla Oluşturuldu!</div>
             <div class="space-y-1 text-sm">
-              <div>UUID: <code class="bg-green-200 px-2 py-0.5 rounded">${data.data.invoiceUUID || '—'}</code></div>
+              <div>UUID: <code class="bg-green-200 px-2 py-0.5 rounded text-xs">${data.data.invoiceUUID || '—'}</code></div>
               <div>Belge No: <strong>${data.data.documentNumber || '—'}</strong></div>
               <div>Alıcı VKN: <strong>${data.data.taxIdUsed}</strong></div>
               <div>Tip: <strong>${data.data.invoiceType}</strong></div>
               ${t.matrah ? `
-              <hr class="my-2">
-              <div>Matrah: <strong>${fmt(t.matrah)} ₺</strong></div>
-              <div>KDV: <strong>${fmt(t.kdv)} ₺</strong></div>
-              ${t.kdvTevkifat > 0 ? `<div>KDV Tevkifat: <strong>-${fmt(t.kdvTevkifat)} ₺</strong></div>` : ''}
-              ${t.stopaj > 0 ? `<div>Stopaj: <strong>-${fmt(t.stopaj)} ₺</strong></div>` : ''}
-              <div>Vergiler Dahil: <strong>${fmt(t.vergilerDahil)} ₺</strong></div>
-              <div class="text-base font-bold">Ödenecek: ${fmt(t.odenecek)} ₺</div>
+              <hr class="my-2 border-green-300">
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div>Matrah: <strong>${fmt(t.matrah)} ₺</strong></div>
+                <div>KDV: <strong>${fmt(t.kdv)} ₺</strong></div>
+                ${t.kdvTevkifat > 0 ? `<div class="text-orange-600">KDV Tevkifat: <strong>-${fmt(t.kdvTevkifat)} ₺</strong></div>` : ''}
+                ${t.stopaj > 0 ? `<div class="text-purple-600">Stopaj: <strong>-${fmt(t.stopaj)} ₺</strong></div>` : ''}
+                <div>Vergiler Dahil: <strong>${fmt(t.vergilerDahil)} ₺</strong></div>
+                <div class="text-base font-bold text-green-700">Ödenecek: ${fmt(t.odenecek)} ₺</div>
+              </div>
               ` : ''}
+            </div>
+            
+            <!-- Görüntüleme Butonları -->
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button onclick="viewInvoice('${data.data.invoiceUUID}')" 
+                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition text-sm font-medium flex items-center gap-2">
+                🌐 HTML Görüntüle
+              </button>
+              <button onclick="downloadPDF('${data.data.invoiceUUID}')" 
+                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition text-sm font-medium flex items-center gap-2">
+                📄 PDF İndir
+              </button>
+              <a href="https://earsivportal.efatura.gov.tr/login.jsp" target="_blank"
+                class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md transition text-sm font-medium flex items-center gap-2">
+                🔗 GİB Portal
+              </a>
             </div>
           `;
         } else {

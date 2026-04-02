@@ -429,7 +429,9 @@
     }
 
     // ── Hesaplamalar ──────────────────────────────────────────────────────────
-    function updateCalculations() {
+      function updateCalculations() {
+      const items = document.querySelectorAll('.product-item');
+      if (items.length === 0) return;
       let totalProducts = 0, totalDiscount = 0, totalVat = 0;
       let withholdingBase = 0, withholdingVat = 0;
 
@@ -490,9 +492,10 @@
       document.getElementById('payableTotalSimple').textContent = fmt(payable) + ' ₺';
     }
 
-    function fmt(n) {
-      return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+      function fmt(n) {
+          if (n === undefined || n === null || isNaN(n)) return "0,00";
+          return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
 
     // ── Form temizle ──────────────────────────────────────────────────────────
     function clearForm() {

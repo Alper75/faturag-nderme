@@ -114,7 +114,10 @@ class Fatura {
         jp: JSON.stringify(
           {
             baslangic: "01/01/2020",
-            bitis: new Date().toLocaleDateString("tr-TR"),
+                bitis: (() => {
+                    const d = new Date();
+                    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+                })(),
             hangiTip: "Buyuk",
           } || {},
         ),

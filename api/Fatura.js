@@ -190,8 +190,14 @@ class Fatura {
         },
       ],
       faturaUuid: this.getNewUuid(),
-      faturaTarihi: new Date().toLocaleDateString("tr-TR").replace(/\./g, "/"),
-      saat: new Date().toLocaleTimeString("tr-TR"),
+        faturaTarihi: (() => {
+            const d = new Date();
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        })(),
+        saat: (() => {
+            const d = new Date();
+            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+        })(),
       vknTckn: "11111111111",
       aliciAdi: "Ugur",
       aliciSoyadi: "Gunes",

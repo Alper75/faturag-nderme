@@ -1,10 +1,5 @@
 /**
  * send-invoice.js — E-Arşiv Fatura API
- * 
- * XML yapısı referansı (gerçek faturadan):
- * - TaxTotal: KDV (0015) + diğer vergiler (0011 KV.Stopaj, 0003 GV.Stopaj)
- * - WithholdingTaxTotal: KDV Tevkifatı (6xx kodları, örn. 625 = Ticari Reklam)
- * - LegalMonetaryTotal.PayableAmount = TaxInclusiveAmount - WithholdingTaxTotal - Stopaj(V0011/V0003)
  */
 const Fatura = require('./Fatura');
 
@@ -29,11 +24,6 @@ const UNIT_TYPES = {
 
 const CURRENCIES = { 'TRY': 'TRY', 'USD': 'USD', 'EUR': 'EUR', 'GBP': 'GBP' };
 
-/**
- * KDV Tevkifat kodları → tevkifat oranı (KDV'nin yüzdesi olarak)
- * Örn: 625 → %30 demek, KDV'nin %30'u tevkif edilir
- * XML'de: withholdingAmount = kdvTutari * (tevkifatOrani / 100)
- */
 const WITHHOLDING_RATES = {
     '601': 70, '602': 50, '603': 70, '604': 50, '605': 50,
     '606': 50, '607': 50, '608': 70, '609': 50, '610': 20,
@@ -43,39 +33,36 @@ const WITHHOLDING_RATES = {
     '626': 20, '627': 20, '801': 70, '802': 50, '803': 70
 };
 
-/**
- * Tevkifat kodu → açıklama (GİB kodları)
- */
 const WITHHOLDING_NAMES = {
-    '601': 'Yapım İşleri ile Bu İşlerle Birlikte İfa Edilen Mühendislik-Mimarlık ve Etüt-Proje Hizmetleri [KDVGUT-(I/C-2.1.3.2.1)]',
-    '602': 'Etüt, Plan-Proje, Danışmanlık, Denetim ve Benzeri Hizmetler [KDVGUT-(I/C-2.1.3.2.2)]',
-    '603': 'Makine, Teçhizat, Demirbaş ve Taşıtlara Ait Tadil, Bakım ve Onarım Hizmetleri [KDVGUT-(I/C-2.1.3.2.3)]',
-    '604': 'Yemek Servis ve Organizasyon Hizmetleri [KDVGUT-(I/C-2.1.3.2.4)]',
-    '605': 'İşgücü Temin Hizmetleri [KDVGUT-(I/C-2.1.3.2.5)]',
-    '606': 'Yapı Denetim Hizmetleri [KDVGUT-(I/C-2.1.3.2.6)]',
-    '607': 'Fason Olarak Yaptırılan Tekstil ve Konfeksiyon İşleri [KDVGUT-(I/C-2.1.3.2.7)]',
-    '608': 'Turistik Mağazalara Verilen Müşteri Bulma / Götürme Hizmetleri [KDVGUT-(I/C-2.1.3.2.8)]',
-    '609': 'Spor Kulüplerinin Yayın, Reklam ve İsim Hakkı Gelirlerine Konu İşlemler [KDVGUT-(I/C-2.1.3.2.9)]',
-    '610': 'Temizlik Hizmetleri [KDVGUT-(I/C-2.1.3.2.10)]',
-    '611': 'Çevre ve Bahçe Bakım Hizmetleri [KDVGUT-(I/C-2.1.3.2.11)]',
-    '612': 'Servis Taşımacılığı [KDVGUT-(I/C-2.1.3.2.12)]',
-    '613': 'Her Türlü Baskı ve Basım Hizmetleri [KDVGUT-(I/C-2.1.3.2.13)]',
-    '614': 'Külçe Metal Teslimleri [KDVGUT-(I/C-2.1.3.3.1)]',
-    '615': 'Bakır, Çinko, Demir-Çelik Ürünlerinin Teslimi [KDVGUT-(I/C-2.1.3.3.2)]',
-    '616': 'Hurda ve Atık Teslimi [KDVGUT-(I/C-2.1.3.3.3)]',
-    '617': 'Metal, Plastik, Lastik, Kauçuk, Kâğıt ve Cam Hurda Teslimi [KDVGUT-(I/C-2.1.3.3.3)]',
-    '618': 'Pamuk, Tiftik, Yün ve Yapağı Teslimi [KDVGUT-(I/C-2.1.3.3.4)]',
-    '619': 'Ağaç ve Orman Ürünleri Teslimi [KDVGUT-(I/C-2.1.3.3.5)]',
-    '620': 'Yük Taşımacılığı Hizmetleri [KDVGUT-(I/C-2.1.3.2.14)]',
-    '621': 'Ticari Reklam Hizmetleri (Kısmi) [KDVGUT-(I/C-2.1.3.2.15)] Kısmi',
-    '622': 'Güvenlik Hizmetleri [KDVGUT-(I/C-2.1.3.2.16)]',
-    '623': 'Fuar ve Sergi Organizasyon Hizmetleri [KDVGUT-(I/C-2.1.3.2.17)]',
-    '624': 'Depolama Hizmetleri [KDVGUT-(I/C-2.1.3.2.18)]',
-    '625': 'Ticari Reklam Hizmetleri [KDVGUT-(I/C-2.1.3.2.15)]',
-    '626': 'Tekstil ve Konfeksiyon Ürünlerinin Teslimi [KDVGUT-(I/C-2.1.3.3.6)]',
+    '601': 'Yapım İşleri [KDVGUT-(I/C-2.1.3.2.1)]',
+    '602': 'Etüt, Plan-Proje, Danışmanlık [KDVGUT-(I/C-2.1.3.2.2)]',
+    '603': 'Makine, Teçhizat Tadil, Bakım [KDVGUT-(I/C-2.1.3.2.3)]',
+    '604': 'Yemek Servis [KDVGUT-(I/C-2.1.3.2.4)]',
+    '605': 'İşgücü Temin [KDVGUT-(I/C-2.1.3.2.5)]',
+    '606': 'Yapı Denetim [KDVGUT-(I/C-2.1.3.2.6)]',
+    '607': 'Fason Tekstil [KDVGUT-(I/C-2.1.3.2.7)]',
+    '608': 'Turistik Mağaza [KDVGUT-(I/C-2.1.3.2.8)]',
+    '609': 'Spor Kulübü [KDVGUT-(I/C-2.1.3.2.9)]',
+    '610': 'Temizlik [KDVGUT-(I/C-2.1.3.2.10)]',
+    '611': 'Bahçe Bakım [KDVGUT-(I/C-2.1.3.2.11)]',
+    '612': 'Servis Taşımacılık [KDVGUT-(I/C-2.1.3.2.12)]',
+    '613': 'Baskı/Basım [KDVGUT-(I/C-2.1.3.2.13)]',
+    '614': 'Külçe Metal [KDVGUT-(I/C-2.1.3.3.1)]',
+    '615': 'Bakır/Çinko/Demir [KDVGUT-(I/C-2.1.3.3.2)]',
+    '616': 'Hurda ve Atık [KDVGUT-(I/C-2.1.3.3.3)]',
+    '617': 'Plastik/Metal Hurda [KDVGUT-(I/C-2.1.3.3.3)]',
+    '618': 'Pamuk/Yün [KDVGUT-(I/C-2.1.3.3.4)]',
+    '619': 'Ağaç Ürünleri [KDVGUT-(I/C-2.1.3.3.5)]',
+    '620': 'Yük Taşımacılığı [KDVGUT-(I/C-2.1.3.2.14)]',
+    '621': 'Ticari Reklam (Kısmi) [KDVGUT-(I/C-2.1.3.2.15)]',
+    '622': 'Güvenlik [KDVGUT-(I/C-2.1.3.2.16)]',
+    '623': 'Fuar/Sergi [KDVGUT-(I/C-2.1.3.2.17)]',
+    '624': 'Depolama [KDVGUT-(I/C-2.1.3.2.18)]',
+    '625': 'Ticari Reklam [KDVGUT-(I/C-2.1.3.2.15)]',
+    '626': 'Tekstil Teslim [KDVGUT-(I/C-2.1.3.3.6)]',
     '627': 'Diğer Hizmetler [KDVGUT-(I/C-2.1.3.2.22)]',
-    '801': 'Ticari Reklam Hizmetleri (Stopaj Dahil) [KDVGUT-(I/C-2.1.3.2.15)]',
-    '802': 'Yapım İşleri (Stopaj Dahil) [KDVGUT-(I/C-2.1.3.2.1)]',
+    '801': 'Ticari Reklam (Stopaj Dahil)',
+    '802': 'Yapım İşleri (Stopaj Dahil)',
     '803': 'Makine Onarım (Stopaj Dahil)'
 };
 
@@ -86,7 +73,6 @@ function formatDate(d) {
         const now = new Date();
         return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
     }
-    // Gelen format: YYYY-MM-DD → DD/MM/YYYY
     const [year, month, day] = d.split('-');
     return `${day}/${month}/${year}`;
 }
@@ -97,6 +83,15 @@ function formatTime(t) {
 
 function round2(n) {
     return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+// Güvenli loglama - circular reference yok
+function safeLog(label, obj) {
+    try {
+        console.log(label, JSON.stringify(obj, null, 2));
+    } catch (e) {
+        console.log(label, '[Circular structure]', typeof obj, Object.keys(obj || {}));
+    }
 }
 
 // ─── Ana fatura veri oluşturma ─────────────────────────────────────────────────
@@ -279,14 +274,14 @@ function buildInvoiceData(body) {
         hangiTip: '5000/30000'
     };
 
-    // ✅ DOĞRU YER: return'den önce
-    console.log('Fatura verisi hazırlandı:', JSON.stringify({
+    // ✅ Güvenli log
+    console.log('Fatura verisi hazırlandı:', {
         faturaTipi: invoiceData.faturaTipi,
         matrah: invoiceData.matrah,
         hesaplananKDV: invoiceData.hesaplanankdv,
         odenecekTutar: invoiceData.odenecekTutar,
         urunSayisi: invoiceData.malHizmetTable.length
-    }, null, 2));
+    });
 
     return invoiceData;
 }
@@ -313,7 +308,7 @@ module.exports = async function handler(req, res) {
     }
 
     const body = req.body;
-    console.log('İstek geldi:', JSON.stringify(body, null, 2));
+    safeLog('İstek geldi:', body);
 
     // ── Validasyon ────────────────────────────────────────────────────────────
     if (!body.buyerTaxId) {
@@ -342,32 +337,35 @@ module.exports = async function handler(req, res) {
         }
 
         await fatura.login();
-        console.log('GİB girişi başarılı - Token:', fatura.token ? 'Var' : 'Yok');
+        console.log('GİB girişi başarılı');
 
         const invoiceData = buildInvoiceData(body);
 
         console.log('Fatura oluşturuluyor...');
         const result = await fatura.createDraft(invoiceData);
 
-        // DETAYLI LOG
-        console.log('createDraft TAM YANIT:', typeof result);
-        console.log('createDraft yanıt verisi:', JSON.stringify(result, null, 2));
+        // ✅ Döngüsel yapıyı loglama - sadece data kısmını al
+        console.log('createDraft yanıt tipi:', typeof result);
+        console.log('createDraft data tipi:', typeof result?.data);
 
-        // HTML hata kontrolü
-        if (result?.data && typeof result.data === 'string' && result.data.trim().startsWith('<')) {
-            console.error('HTML hata sayfası alındı:', result.data.substring(0, 500));
-            throw new Error('GİB API HTML hata sayfası döndürdü. Muhtemelen oturum sorunu veya parametre hatası.');
+        // Güvenli şekilde data'yı logla
+        if (result?.data) {
+            if (typeof result.data === 'string') {
+                console.log('Yanıt string (HTML veya hata):', result.data.substring(0, 200));
+            } else {
+                safeLog('Yanıt data:', result.data);
+            }
         }
 
         await fatura.logout();
 
-        // UUID bulma - farklı alan adlarını dene
+        // UUID bulma
         let resultData = {};
         let invoiceUUID = '';
 
-        if (result && result.data) {
+        if (result && result.data && typeof result.data === 'object') {
             resultData = result.data;
-        } else if (result) {
+        } else if (result && typeof result === 'object' && !result.data) {
             resultData = result;
         }
 
@@ -375,9 +373,6 @@ module.exports = async function handler(req, res) {
         invoiceUUID = resultData.uuid ||
             resultData.faturaUuid ||
             resultData.ettn ||
-            resultData.data?.uuid ||
-            resultData.data?.faturaUuid ||
-            resultData.data?.ettn ||
             resultData.belgeNumarasi ||
             '';
 
@@ -386,7 +381,10 @@ module.exports = async function handler(req, res) {
             invoiceUUID = invoiceData.faturaUuid;
         }
 
-        console.log('Bulunan sonuç:', { resultData, invoiceUUID });
+        console.log('Bulunan sonuç:', {
+            invoiceUUID: invoiceUUID || 'Bulunamadı',
+            documentNumber: resultData.belgeNumarasi || 'Bulunamadı'
+        });
 
         return res.status(200).json({
             success: true,
@@ -411,7 +409,7 @@ module.exports = async function handler(req, res) {
     } catch (error) {
         try { await fatura.logout(); } catch (_) { /* ignore */ }
 
-        console.error('HATA:', error);
+        console.error('HATA:', error.message);
         console.error('Hata stack:', error.stack);
 
         let errorMessage = error.message || 'Bilinmeyen hata';
@@ -421,7 +419,7 @@ module.exports = async function handler(req, res) {
             const gibError = error.response.data;
             errorMessage = gibError.error || gibError.message || errorMessage;
             errorCode = gibError.errorCode;
-            console.error('GİB Hatası:', JSON.stringify(gibError, null, 2));
+            console.error('GİB Hatası:', gibError);
         }
 
         return res.status(500).json({

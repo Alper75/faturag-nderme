@@ -342,76 +342,58 @@ module.exports = async function handler(req, res) {
         const invoiceData = buildInvoiceData(body);
 
         console.log('Fatura oluşturuluyor...');
-        try {
-            const result = await fatura.createDraft(invoiceData);
 
-            console.log('createDraft sonuç tipi:', typeof result);
-            console.log('createDraft sonuç:', result);
+        // ✅ DÜZELTİLDİ: let kullan ve tek seferde tanımla
+        let apiResult = await fatura.createDraft(invoiceData);
 
-            // Eğer result undefined veya null ise
-            if (!result) {
-                throw new Error('GİB yanıt vermedi');
-            }
+        console.log('createDraft sonuç tipi:', typeof apiResult);
+        console.log('createDraft sonuç:', apiResult);
 
-            // Eğer string ise (HTML hata sayfası olabilir)
-            if (typeof result === 'string') {
-                if (result.trim().startsWith('<')) {
-                    throw new Error('GİB HTML hata sayfası döndürdü');
-                }
-                // JSON string olabilir, dene
-                try {
-                    result = JSON.parse(result);
-                } catch (e) {
-                    throw new Error('GİB geçersiz yanıt döndürdü: ' + result.substring(0, 100));
-                }
-            }
-
-            // Şimdi result bir obje olmalı
-            let resultData = result.data || result;
-            let invoiceUUID = resultData?.uuid ||
-                resultData?.faturaUuid ||
-                resultData?.ettn ||
-                resultData?.belgeNumarasi ||
-                '';
-
-            console.log('Bulunan UUID:', invoiceUUID);
-
-        } catch (error) {
-            // ... hata işleme
+        // Eğer apiResult undefined veya null ise
+        if (!apiResult) {
+            throw new Error('GİB yanıt vermedi');
         }
+
+        // Eğer string ise (HTML hata sayfası olabilir)
+        if (typeof apiResult === 'string') {
+            if (apiResult.trim().startsWith('<')) {
+                throw new Error('GİB HTML hata sayfası döndürdü');
+            }
+            // JSON string olabilir, dene
+            try {
+                apiResult = JSON.parse(apiResult);
+            } catch (e) {
+                throw new Error('GİB geçersiz yanıt döndürdü: ' + apiResult.substring(0, 100));
+            }
+        }
+
+        // Şimdi apiResult bir obje olmalı
+        let resultData = apiResult.data || apiResult || {};
 
         // Eğer hata varsa
         if (resultData.error || resultData.messages) {
             console.error('GİB Hatası:', resultData);
             throw new Error(resultData.messages?.[0] || resultData.error || 'Fatura oluşturulamadı');
         }
+
+        let invoiceUUID = resultData?.uuid ||
+            resultData?.faturaUuid ||
+            resultData?.ettn ||
+            resultData?.belgeNumarasi ||
+            '';
+
+        console.log('Bulunan UUID:', invoiceUUID);
+
         // Güvenli şekilde data'yı logla
-        if (result?.data) {
-            if (typeof result.data === 'string') {
-                console.log('Yanıt string (HTML veya hata):', result.data.substring(0, 200));
+        if (apiResult?.data) {
+            if (typeof apiResult.data === 'string') {
+                console.log('Yanıt string (HTML veya hata):', apiResult.data.substring(0, 200));
             } else {
-                safeLog('Yanıt data:', result.data);
+                safeLog('Yanıt data:', apiResult.data);
             }
         }
 
         await fatura.logout();
-
-        // UUID bulma
-        let resultData = {};
-        let invoiceUUID = '';
-
-        if (result && result.data && typeof result.data === 'object') {
-            resultData = result.data;
-        } else if (result && typeof result === 'object' && !result.data) {
-            resultData = result;
-        }
-
-        // Tüm olası alan adlarını kontrol et
-        invoiceUUID = resultData.uuid ||
-            resultData.faturaUuid ||
-            resultData.ettn ||
-            resultData.belgeNumarasi ||
-            '';
 
         // Eğer bulunamadıysa, gönderdiğimiz UUID'yi kullan
         if (!invoiceUUID && invoiceData.faturaUuid) {

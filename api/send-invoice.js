@@ -2,7 +2,7 @@
  * send-invoice.js — E-Arşiv Fatura API
  */
 const Fatura = require('./Fatura');
-
+const { v4: uuidv4 } = require('uuid'); // ✅ Ekle
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
 const INVOICE_TYPES = {
@@ -210,7 +210,7 @@ function buildInvoiceData(body) {
 
     // ── Fatura nesnesi ──────────────────────────────────────────────────────────
     const invoiceData = {
-        faturaUuid: body.uuid || undefined,
+        faturaUuid: body.uuid || uuidv4(),
         belgeNumarasi: '',
         faturaTarihi: formatDate(body.date),
         saat: formatTime(body.time),

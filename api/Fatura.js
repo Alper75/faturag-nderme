@@ -248,6 +248,8 @@ class Fatura {
   }
 
     async createDraft(faturaBilgileri) {
+        console.log('=== GİB createDraft ÇAĞRILIYOR ===');
+
         try {
             const response = await axios.post(
                 `${this.urls[this.mode]}/dispatch`,
@@ -260,24 +262,20 @@ class Fatura {
                 this.getHeaders(),
             );
 
-            // Yanıtı güvenli şekilde işle
-            let data = response.data;
+            console.log('=== GİB YANIT ===');
+            console.log('Status:', response.status);
+            console.log('Headers:', response.headers);
+            console.log('Data tipi:', typeof response.data);
+            console.log('Data:', JSON.stringify(response.data, null, 2));
 
-            // Eğer string ise ve JSON gibi görünüyorsa parse et
-            if (typeof data === 'string') {
-                try {
-                    data = JSON.parse(data);
-                } catch (e) {
-                    // JSON değilse string olarak bırak
-                    console.log('Yanıt string (JSON değil):', data.substring(0, 100));
-                }
-            }
+            return response.data;
 
-            return data;
         } catch (error) {
-            console.error('createDraft hatası:', error.message);
+            console.error('=== GİB HATA ===');
+            console.error('Mesaj:', error.message);
             if (error.response) {
-                console.error('Yanıt verisi:', error.response.data);
+                console.error('Status:', error.response.status);
+                console.error('Data:', error.response.data);
             }
             throw error;
         }

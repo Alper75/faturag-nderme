@@ -343,54 +343,75 @@ module.exports = async function handler(req, res) {
 
         console.log('Fatura oluşturuluyor...');
 
-        // ✅ DÜZELTİLDİ: let kullan ve tek seferde tanımla
-        let apiResult = await fatura.createDraft(invoiceData);
+        const apiResult = await fatura.createDraft(invoiceData);
 
-        console.log('createDraft sonuç tipi:', typeof apiResult);
-        console.log('createDraft sonuç:', apiResult);
+        console.log('=== API SONUÇ İŞLEME ===');
+        console.log('apiResult:', apiResult);
+        console.log('apiResult tipi:', typeof apiResult);
 
-        // Eğer apiResult undefined veya null ise
+        // Eğer apiResult undefined/null ise
         if (!apiResult) {
-            throw new Error('GİB yanıt vermedi');
+            throw new Error('GİB yanıt vermedi (null/undefined)');
         }
 
-        // Eğer string ise (HTML hata sayfası olabilir)
+        // Eğer string ise
         if (typeof apiResult === 'string') {
+            console.log('String yanıt:', apiResult.substring(0, 500));
             if (apiResult.trim().startsWith('<')) {
-                throw new Error('GİB HTML hata sayfası döndürdü');
+                throw new Error('GİB HTML döndürdü');
             }
-            // JSON string olabilir, dene
             try {
                 apiResult = JSON.parse(apiResult);
             } catch (e) {
-                throw new Error('GİB geçersiz yanıt döndürdü: ' + apiResult.substring(0, 100));
+                throw new Error('JSON parse hatası: ' + e.message);
             }
         }
 
-        // Şimdi apiResult bir obje olmalı
-        let resultData = apiResult.data || apiResult || {};
+        // Şimdi obje olduğunu varsayalım
+        console.log('İşlenecek obje:', apiResult);
+        console.log('Obje anahtarları:', Object.keys(apiResult));
 
-        // Eğer hata varsa
-        if (resultData.error || resultData.messages) {
-            console.error('GİB Hatası:', resultData);
-            throw new Error(resultData.messages?.[0] || resultData.error || 'Fatura oluşturulamadı');
+        // GİB yanıt yapısını kontrol et
+        // Muhtemelen yapılar: { data: {...} }, { uuid: "..." }, veya doğrudan {...}
+
+        let resultData = {};
+        let invoiceUUID = '';
+
+        // Farklı yapıları dene
+        if (apiResult.data) {
+            resultData = apiResult.data;
+            console.log('apiResult.data bulundu:', resultData);
+        } else {
+            resultData = apiResult;
+            console.log('apiResult doğrudan kullanıldı:', resultData);
         }
 
-        let invoiceUUID = resultData?.uuid ||
-            resultData?.faturaUuid ||
-            resultData?.ettn ||
-            resultData?.belgeNumarasi ||
-            '';
+        // UUID ara - tüm olası alan adları
+        const possibleUUIDFields = ['uuid', 'faturaUuid', 'ettn', 'faturaNo', 'belgeNumarasi', 'id', 'faturaID'];
+        console.log('UUID aranıyor, alanlar:', possibleUUIDFields);
+        console.log('resultData içeriği:', JSON.stringify(resultData, null, 2));
 
-        console.log('Bulunan UUID:', invoiceUUID);
-
-        // Güvenli şekilde data'yı logla
-        if (apiResult?.data) {
-            if (typeof apiResult.data === 'string') {
-                console.log('Yanıt string (HTML veya hata):', apiResult.data.substring(0, 200));
-            } else {
-                safeLog('Yanıt data:', apiResult.data);
+        for (const field of possibleUUIDFields) {
+            if (resultData[field]) {
+                invoiceUUID = resultData[field];
+                console.log(`UUID bulundu (${field}):`, invoiceUUID);
+                break;
             }
+        }
+
+        if (!invoiceUUID) {
+            console.error('UUID bulunamadı! resultData:', resultData);
+        }
+
+        // Hata kontrolü
+        if (resultData.error || resultData.messages || resultData.hata) {
+            console.error('GİB Hata:', resultData);
+            throw new Error(
+                resultData.messages?.[0] ||
+                resultData.error ||
+                resultData.hata ||
+                'Fatura oluşturulamadı'
+            );
         }
 
         await fatura.logout();

@@ -69,11 +69,20 @@ const WITHHOLDING_NAMES = {
 // ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────────
 
 function formatDate(d) {
-    if (!d) {
-        const now = new Date();
-        return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    // Eğer d parametresi "2026-04-03" formatındaysa
+    if (d && d.includes("-")) {
+        const parts = d.split('-');
+        if (parts.length === 3) {
+            // YYYY-MM-DD -> DD/MM/YYYY
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
     }
-    const [year, month, day] = d.split('-');
+
+    // Varsayılan bugünün tarihi
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
     return `${day}/${month}/${year}`;
 }
 

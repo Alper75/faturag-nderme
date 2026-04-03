@@ -3,732 +3,542 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>E-Arşiv Fatura Gönderme Paneli</title>
+  <title>E-Arşiv Fatura Paneli</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen">
-  <div class="container mx-auto px-4 py-8 max-w-6xl">
-    <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">🧾 E-Arşiv Fatura Gönderme</h1>
+<body class="bg-slate-100 min-h-screen">
+<div class="max-w-5xl mx-auto px-4 py-8">
 
-    <form id="invoiceForm" class="space-y-6">
+  <h1 class="text-3xl font-bold text-slate-800 mb-8 text-center">🧾 E-Arşiv Fatura</h1>
 
-      <!-- ALICI BİLGİLERİ -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">👤 Alıcı Bilgileri</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">VKN/TCKN *</label>
-            <input type="text" name="buyerTaxId" id="buyerTaxId" required maxlength="11"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="3881455293">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Unvan (Şirket)</label>
-            <input type="text" name="buyerTitle"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="GAMES DİJİTAL MEDYA HİZMETLERİ A.Ş.">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Dairesi</label>
-            <input type="text" name="buyerTaxOffice"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="BEŞİKTAŞ VERGİ DAİRESİ">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Adı (Bireysel)</label>
-            <input type="text" name="buyerFirstName"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Soyadı (Bireysel)</label>
-            <input type="text" name="buyerLastName"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Ülke *</label>
-            <select name="country" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="Türkiye" selected>Türkiye</option>
-              <option value="Almanya">Almanya</option>
-              <option value="ABD">ABD</option>
-              <option value="Diğer">Diğer</option>
-            </select>
-          </div>
-          <div class="md:col-span-3">
-            <label class="block text-sm font-medium text-gray-600 mb-1">Adres</label>
-            <textarea name="buyerAddress" rows="2"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Akat Mah. Meydan Cad. No:14 D:6 / Beşiktaş İSTANBUL"></textarea>
-          </div>
+  <form id="invoiceForm" class="space-y-5">
+
+    <!-- ALICI -->
+    <section class="bg-white rounded-xl shadow p-6">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4 border-b pb-2">👤 Alıcı Bilgileri</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="label">VKN / TCKN *</label>
+          <input name="buyerTaxId" required maxlength="11" class="input" placeholder="3881455293">
+        </div>
+        <div>
+          <label class="label">Unvan (şirket)</label>
+          <input name="buyerTitle" class="input" placeholder="GAMES DİJİTAL MEDYA A.Ş.">
+        </div>
+        <div>
+          <label class="label">Vergi Dairesi</label>
+          <input name="buyerTaxOffice" class="input" placeholder="BEŞİKTAŞ VD">
+        </div>
+        <div>
+          <label class="label">Adı (bireysel)</label>
+          <input name="buyerFirstName" class="input">
+        </div>
+        <div>
+          <label class="label">Soyadı (bireysel)</label>
+          <input name="buyerLastName" class="input">
+        </div>
+        <div>
+          <label class="label">Ülke</label>
+          <select name="country" class="input">
+            <option value="Türkiye" selected>Türkiye</option>
+            <option value="Almanya">Almanya</option>
+            <option value="ABD">ABD</option>
+            <option value="Diğer">Diğer</option>
+          </select>
+        </div>
+        <div class="md:col-span-3">
+          <label class="label">Adres</label>
+          <input name="buyerAddress" class="input" placeholder="Akat Mah. Meydan Cad. No:14 Beşiktaş / İstanbul">
         </div>
       </div>
+    </section>
 
-      <!-- FATURA BİLGİLERİ -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">📋 Fatura Bilgileri</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tarihi *</label>
-            <input type="date" name="invoiceDate" id="invoiceDate" required
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Saati *</label>
-            <input type="time" name="invoiceTime" id="invoiceTime" step="1" required
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Fatura Tipi *</label>
-            <select name="invoiceType" id="invoiceType"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="SATIS">SATIŞ</option>
-              <option value="TEVKIFAT">TEVKİFAT</option>
-              <option value="IADE">İADE</option>
-              <option value="ISTISNA">İSTİSNA</option>
-              <option value="OZELMATRAH">ÖZEL MATRAH</option>
-              <option value="IHRACKAYITLI">İHRAÇ KAYITLI</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Para Birimi</label>
-            <select name="currency"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="TRY">TRY - Türk Lirası</option>
-              <option value="USD">USD - Dolar</option>
-              <option value="EUR">EUR - Euro</option>
-              <option value="GBP">GBP - İngiliz Sterlini</option>
-            </select>
-          </div>
+    <!-- FATURA BİLGİLERİ -->
+    <section class="bg-white rounded-xl shadow p-6">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4 border-b pb-2">📋 Fatura Bilgileri</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <label class="label">Tarih *</label>
+          <input type="date" name="invoiceDate" id="invoiceDate" required class="input">
+        </div>
+        <div>
+          <label class="label">Saat *</label>
+          <input type="time" name="invoiceTime" id="invoiceTime" step="1" required class="input">
+        </div>
+        <div>
+          <label class="label">Fatura Tipi *</label>
+          <select name="invoiceType" class="input">
+            <option value="SATIS">SATIŞ</option>
+            <option value="TEVKIFAT">TEVKİFAT</option>
+            <option value="IADE">İADE</option>
+            <option value="ISTISNA">İSTİSNA</option>
+            <option value="OZELMATRAH">ÖZEL MATRAH</option>
+            <option value="IHRACKAYITLI">İHRAÇ KAYITLI</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Para Birimi</label>
+          <select name="currency" class="input">
+            <option value="TRY">TRY — Türk Lirası</option>
+            <option value="USD">USD — Dolar</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="GBP">GBP — Sterlin</option>
+          </select>
         </div>
       </div>
+    </section>
 
-      <!-- STOPAJ (KV/GV) VERGİSİ -->
-      <div class="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
-        <h2 class="text-xl font-semibold text-gray-700 mb-1 border-b pb-2">💰 Stopaj Vergisi (Opsiyonel)</h2>
-        <p class="text-xs text-gray-500 mb-4">KV. Stopajı veya GV. Stopajı — matrah üzerinden hesaplanır, TaxTotal'a eklenir</p>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Vergi Çeşidi</label>
-            <select id="taxTypeSelect"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Seçiniz</option>
-              <option value="V0011">V0011 — KV. Kurumlar Vergisi Stopajı</option>
-              <option value="V0003">V0003 — GV. Gelir Vergisi Stopajı</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Oran (%)</label>
-            <input type="number" id="taxRateInput" min="0" max="100" step="0.01"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="15">
-          </div>
-          <div>
-            <button type="button" onclick="addTax()"
-              class="w-full bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition font-medium">
-              + Stopaj Ekle
-            </button>
-          </div>
-          <div id="addedTaxes" class="space-y-2"></div>
+    <!-- STOPAJ -->
+    <section class="bg-amber-50 border border-amber-200 rounded-xl shadow p-6">
+      <h2 class="text-lg font-semibold text-slate-700 mb-1 border-b pb-2">💰 Stopaj Vergisi <span class="text-sm font-normal text-slate-500">(opsiyonel — matrah üzerinden)</span></h2>
+      <p class="text-xs text-slate-500 mb-4">KV veya GV Stopajı. Matrah × oran olarak hesaplanır, ödenecek tutardan düşülür.</p>
+      <div class="flex flex-wrap gap-3 items-end">
+        <div>
+          <label class="label">Vergi Çeşidi</label>
+          <select id="taxTypeSelect" class="input w-56">
+            <option value="">Seçiniz</option>
+            <option value="V0011">V0011 — KV. Kurumlar Vergisi Stopajı</option>
+            <option value="V0003">V0003 — GV. Gelir Vergisi Stopajı</option>
+          </select>
         </div>
-      </div>
-
-      <!-- ÜRÜNLER / HİZMETLER -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex justify-between items-center mb-4 border-b pb-2">
-          <h2 class="text-xl font-semibold text-gray-700">📦 Mal / Hizmet Listesi</h2>
-          <button type="button" onclick="addProduct()"
-            class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition text-sm font-medium">
-            + Satır Ekle
-          </button>
+        <div>
+          <label class="label">Oran (%)</label>
+          <input type="number" id="taxRateInput" min="0" max="100" step="0.01" class="input w-28" placeholder="15">
         </div>
-
-        <div id="productsContainer" class="space-y-4">
-          <!-- İlk ürün satırı -->
-          <div class="product-item bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-              <!-- Mal/Hizmet Adı -->
-              <div class="md:col-span-3">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Mal/Hizmet Adı *</label>
-                <input type="text" name="productName" required
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ticari Reklam Hizmeti">
-              </div>
-              <!-- Miktar -->
-              <div class="md:col-span-1">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Miktar</label>
-                <input type="number" name="productQuantity" value="1" min="0.001" step="0.001"
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              </div>
-              <!-- Birim -->
-              <div class="md:col-span-1">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Birim</label>
-                <select name="productUnitType"
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="C62">Adet</option>
-                  <option value="HUR">Saat</option>
-                  <option value="DAY">Gün</option>
-                  <option value="MON">Ay</option>
-                  <option value="KGM">Kg</option>
-                  <option value="LTR">Litre</option>
-                  <option value="MTR">Metre</option>
-                  <option value="MTK">m²</option>
-                  <option value="MTQ">m³</option>
-                </select>
-              </div>
-              <!-- Birim Fiyat -->
-              <div class="md:col-span-2">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Birim Fiyat (₺)</label>
-                <input type="number" name="productUnitPrice" min="0" step="0.01"
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="20000.00">
-              </div>
-              <!-- KDV Oranı -->
-              <div class="md:col-span-1">
-                <label class="block text-xs font-medium text-gray-600 mb-1">KDV %</label>
-                <select name="productVatRate"
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="0">%0</option>
-                  <option value="1">%1</option>
-                  <option value="10">%10</option>
-                  <option value="20" selected>%20</option>
-                </select>
-              </div>
-              <!-- İskonto -->
-              <div class="md:col-span-1">
-                <label class="block text-xs font-medium text-gray-600 mb-1">İskonto %</label>
-                <input type="number" name="productDiscountRate" value="0" min="0" max="100" step="0.01"
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              </div>
-              <!-- KDV Tevkifat Kodu -->
-              <div class="md:col-span-2">
-                <label class="block text-xs font-medium text-gray-600 mb-1">KDV Tevkifat Kodu</label>
-                <select name="withholdingCode"
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  title="Sadece TEVKİFAT tipi faturalar için">
-                  <option value="">Yok</option>
-                  <option value="601">601 — Yapım İşleri (%70)</option>
-                  <option value="602">602 — Danışmanlık (%50)</option>
-                  <option value="603">603 — Makine Bakım (%70)</option>
-                  <option value="604">604 — Yemek Servis (%50)</option>
-                  <option value="605">605 — İşgücü Temin (%50)</option>
-                  <option value="606">606 — Yapı Denetim (%50)</option>
-                  <option value="607">607 — Fason Tekstil (%50)</option>
-                  <option value="608">608 — Turistik Mağaza (%70)</option>
-                  <option value="609">609 — Spor Kulübü (%50)</option>
-                  <option value="610">610 — Temizlik (%20)</option>
-                  <option value="611">611 — Bahçe Bakım (%20)</option>
-                  <option value="612">612 — Servis Taşımacılık (%40)</option>
-                  <option value="613">613 — Baskı/Basım (%40)</option>
-                  <option value="614">614 — Külçe Metal (%50)</option>
-                  <option value="615">615 — Bakır/Demir/Çinko (%50)</option>
-                  <option value="616">616 — Hurda ve Atık (%90)</option>
-                  <option value="617">617 — Plastik/Metal Hurda (%20)</option>
-                  <option value="618">618 — Pamuk/Yün (%20)</option>
-                  <option value="619">619 — Ağaç Ürünleri (%20)</option>
-                  <option value="620">620 — Yük Taşımacılığı (%20)</option>
-                  <option value="622">622 — Güvenlik (%20)</option>
-                  <option value="623">623 — Fuar/Sergi (%20)</option>
-                  <option value="624">624 — Depolama (%50)</option>
-                  <option value="625">625 — Ticari Reklam (%30)</option>
-                  <option value="626">626 — Tekstil Teslim (%20)</option>
-                  <option value="627">627 — Diğer Hizmetler (%20)</option>
-                </select>
-              </div>
-              <!-- Sil butonu -->
-              <div class="md:col-span-1 flex justify-end">
-                <button type="button" onclick="removeProduct(this)"
-                  class="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 transition text-sm">
-                  Sil
-                </button>
-              </div>
-            </div>
-            <!-- Satır özeti -->
-            <div class="mt-2 flex gap-6 text-xs text-gray-500 border-t pt-2">
-              <span>Net Tutar: <strong class="productTotal text-gray-800">0,00</strong> ₺</span>
-              <span>KDV: <strong class="productVatAmount text-gray-800">0,00</strong> ₺</span>
-              <span class="kdvTevkifatInfo hidden text-orange-600">
-                KDV Tevkifat (<span class="withholding-rate">0</span>%):
-                <strong class="withholding-amount">0,00</strong> ₺
-              </span>
-              <!-- hidden inputs -->
-              <input type="hidden" name="withholdingRate" class="withholding-rate-input" value="0">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ÖZET / TOPLAMLAR -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">🧮 Özet</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="text-right">
-            <span class="text-sm text-gray-500">Mal/Hizmet Toplam</span>
-            <div id="totalProducts" class="text-lg font-bold text-gray-800">0,00 ₺</div>
-          </div>
-          <div class="text-right">
-            <span class="text-sm text-gray-500">Toplam İskonto</span>
-            <div id="totalDiscount" class="text-lg font-bold text-red-600">0,00 ₺</div>
-          </div>
-          <div class="text-right">
-            <span class="text-sm text-gray-500">Hesaplanan KDV</span>
-            <div id="totalVat" class="text-lg font-bold text-gray-800">0,00 ₺</div>
-          </div>
-          <div class="text-right">
-            <span class="text-sm text-gray-500">Vergiler Dahil Toplam</span>
-            <div id="grandTotal" class="text-lg font-bold text-blue-600">0,00 ₺</div>
-          </div>
-        </div>
-
-        <!-- Tevkifat satırı -->
-        <div class="grid grid-cols-2 gap-4 mt-4 border-t pt-4">
-          <div class="text-right">
-            <span class="text-sm text-gray-500">Tevkifata Tabi İşlem Tutarı</span>
-            <div id="withholdingBaseTotal" class="text-lg font-bold text-orange-500">0,00 ₺</div>
-          </div>
-          <div class="text-right">
-            <span class="text-sm text-gray-500">KDV Tevkifat Tutarı</span>
-            <div id="withholdingVatTotal" class="text-lg font-bold text-orange-500">0,00 ₺</div>
-          </div>
-        </div>
-
-        <!-- Stopaj satırı -->
-        <div id="stopajSection" class="grid grid-cols-2 gap-4 mt-4 border-t pt-4 hidden">
-          <div class="text-right">
-            <span class="text-sm text-gray-500">Stopaj (KV/GV)</span>
-            <div id="stopajTotal" class="text-lg font-bold text-purple-600">0,00 ₺</div>
-          </div>
-          <div class="text-right">
-            <span class="text-sm text-gray-500 font-semibold">Ödenecek Tutar</span>
-            <div id="payableTotal" class="text-2xl font-bold text-green-600">0,00 ₺</div>
-          </div>
-        </div>
-
-        <!-- Ödenecek (tevkifat yoksa) -->
-        <div id="payableSimple" class="text-right mt-4 border-t pt-4">
-          <span class="text-sm text-gray-500 font-semibold">Ödenecek Tutar</span>
-          <div id="payableTotalSimple" class="text-2xl font-bold text-green-600">0,00 ₺</div>
-        </div>
-      </div>
-
-      <!-- NOT -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <label class="block text-sm font-medium text-gray-700 mb-1">📝 Not</label>
-        <textarea name="note" rows="2"
-          class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Fatura notu (opsiyonel)"></textarea>
-      </div>
-
-      <!-- BUTONLAR -->
-      <div class="flex justify-between items-center">
-        <button type="button" onclick="clearForm()"
-          class="bg-gray-500 text-white px-6 py-3 rounded-md hover:bg-gray-600 transition">
-          🗑 Temizle
-        </button>
-        <button type="submit"
-          class="bg-blue-600 text-white px-10 py-3 rounded-md hover:bg-blue-700 transition font-bold text-lg">
-          📤 Fatura Gönder
+        <button type="button" onclick="addTax()"
+          class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition">
+          + Stopaj Ekle
         </button>
       </div>
-    </form>
+      <div id="addedTaxes" class="mt-3 space-y-2"></div>
+    </section>
 
-    <!-- SONUÇ -->
-    <div id="result" class="mt-6 hidden">
-      <div id="resultContent" class="p-6 rounded-lg"></div>
+    <!-- ÜRÜNLER -->
+    <section class="bg-white rounded-xl shadow p-6">
+      <div class="flex justify-between items-center mb-4 border-b pb-2">
+        <h2 class="text-lg font-semibold text-slate-700">📦 Mal / Hizmet</h2>
+        <button type="button" onclick="addProduct()"
+          class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition">
+          + Satır Ekle
+        </button>
+      </div>
+
+      <div id="productsContainer" class="space-y-4">
+        <!-- şablon satır — JS ile kopyalanacak -->
+        <div class="product-item bg-slate-50 border border-slate-200 rounded-lg p-4">
+          <div class="grid grid-cols-2 md:grid-cols-12 gap-3 items-end">
+
+            <div class="md:col-span-3">
+              <label class="label">Mal/Hizmet Adı *</label>
+              <input name="productName" required class="input" placeholder="Ticari Reklam Hizmeti">
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="label">Miktar</label>
+              <input type="number" name="productQuantity" value="1" min="0.001" step="0.001" class="input">
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="label">Birim</label>
+              <select name="productUnitType" class="input">
+                <option value="C62">Adet</option>
+                <option value="HUR">Saat</option>
+                <option value="DAY">Gün</option>
+                <option value="MON">Ay</option>
+                <option value="KGM">Kg</option>
+                <option value="LTR">Litre</option>
+                <option value="MTR">Metre</option>
+                <option value="MTK">m²</option>
+                <option value="MTQ">m³</option>
+                <option value="PA">Paket</option>
+              </select>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="label">Birim Fiyat</label>
+              <input type="number" name="productUnitPrice" min="0" step="0.01" class="input" placeholder="20000.00">
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="label">KDV %</label>
+              <select name="productVatRate" class="input">
+                <option value="0">%0</option>
+                <option value="1">%1</option>
+                <option value="10">%10</option>
+                <option value="20" selected>%20</option>
+              </select>
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="label">İsk. %</label>
+              <input type="number" name="productDiscountRate" value="0" min="0" max="100" step="0.01" class="input">
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="label">KDV Tevkifat Kodu</label>
+              <select name="withholdingCode" class="input text-xs">
+                <option value="">— Yok —</option>
+                <option value="601">601 — Yapım İşleri (%70)</option>
+                <option value="602">602 — Danışmanlık (%50)</option>
+                <option value="603">603 — Makine Bakım (%70)</option>
+                <option value="604">604 — Yemek Servis (%50)</option>
+                <option value="605">605 — İşgücü Temin (%50)</option>
+                <option value="606">606 — Yapı Denetim (%50)</option>
+                <option value="607">607 — Fason Tekstil (%50)</option>
+                <option value="608">608 — Turistik Mağaza (%70)</option>
+                <option value="609">609 — Spor Kulübü (%50)</option>
+                <option value="610">610 — Temizlik (%20)</option>
+                <option value="611">611 — Bahçe Bakım (%20)</option>
+                <option value="612">612 — Servis Taşımacılık (%40)</option>
+                <option value="613">613 — Baskı/Basım (%40)</option>
+                <option value="614">614 — Külçe Metal (%50)</option>
+                <option value="615">615 — Bakır/Demir/Çinko (%50)</option>
+                <option value="616">616 — Hurda ve Atık (%90)</option>
+                <option value="617">617 — Plastik Hurda (%20)</option>
+                <option value="618">618 — Pamuk/Yün (%20)</option>
+                <option value="619">619 — Ağaç Ürünleri (%20)</option>
+                <option value="620">620 — Yük Taşımacılığı (%20)</option>
+                <option value="622">622 — Güvenlik (%20)</option>
+                <option value="623">623 — Fuar/Sergi (%20)</option>
+                <option value="624">624 — Depolama (%50)</option>
+                <option value="625">625 — Ticari Reklam (%30)</option>
+                <option value="626">626 — Tekstil Teslim (%20)</option>
+                <option value="627">627 — Diğer Hizmetler (%20)</option>
+              </select>
+            </div>
+
+            <div class="md:col-span-1 flex justify-end pt-5">
+              <button type="button" onclick="removeProduct(this)"
+                class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition">✕</button>
+            </div>
+          </div>
+
+          <!-- satır özeti -->
+          <div class="mt-2 pt-2 border-t border-slate-200 flex flex-wrap gap-4 text-xs text-slate-500">
+            <span>Net Tutar: <b class="text-slate-700 productNet">0,00</b> ₺</span>
+            <span>KDV: <b class="text-slate-700 productVat">0,00</b> ₺</span>
+            <span class="productWhInfo hidden text-orange-600">
+              KDV Tevkifat (<span class="productWhRate">0</span>%):
+              <b class="productWhAmt">0,00</b> ₺
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ÖZET -->
+    <section class="bg-white rounded-xl shadow p-6">
+      <h2 class="text-lg font-semibold text-slate-700 mb-4 border-b pb-2">🧮 Özet</h2>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-right">
+        <div><p class="text-xs text-slate-500">Mal/Hizmet Toplam</p>
+             <p id="sumGross" class="text-lg font-bold">0,00 ₺</p></div>
+        <div><p class="text-xs text-slate-500">Toplam İskonto</p>
+             <p id="sumDisc" class="text-lg font-bold text-red-500">0,00 ₺</p></div>
+        <div><p class="text-xs text-slate-500">Hesaplanan KDV</p>
+             <p id="sumVat" class="text-lg font-bold">0,00 ₺</p></div>
+        <div><p class="text-xs text-slate-500">Vergiler Dahil Toplam</p>
+             <p id="sumIncluded" class="text-lg font-bold text-blue-600">0,00 ₺</p></div>
+      </div>
+
+      <div id="rowWH" class="hidden mt-3 pt-3 border-t grid grid-cols-2 gap-4 text-right">
+        <div><p class="text-xs text-slate-500">Tevkifata Tabi İşlem</p>
+             <p id="sumWhBase" class="text-lg font-bold text-orange-500">0,00 ₺</p></div>
+        <div><p class="text-xs text-slate-500">KDV Tevkifat Tutarı (−)</p>
+             <p id="sumWH" class="text-lg font-bold text-orange-500">0,00 ₺</p></div>
+      </div>
+
+      <div id="rowStopaj" class="hidden mt-3 pt-3 border-t grid grid-cols-2 gap-4 text-right">
+        <div><p class="text-xs text-slate-500">Stopaj (−)</p>
+             <p id="sumStopaj" class="text-lg font-bold text-purple-600">0,00 ₺</p></div>
+        <div></div>
+      </div>
+
+      <div class="mt-3 pt-3 border-t text-right">
+        <p class="text-sm text-slate-500 font-semibold">Ödenecek Tutar</p>
+        <p id="sumPayable" class="text-3xl font-bold text-emerald-600">0,00 ₺</p>
+      </div>
+    </section>
+
+    <!-- NOT -->
+    <section class="bg-white rounded-xl shadow p-6">
+      <label class="label">📝 Fatura Notu</label>
+      <textarea name="note" rows="2" class="input" placeholder="Opsiyonel not..."></textarea>
+    </section>
+
+    <!-- BUTONLAR -->
+    <div class="flex justify-between">
+      <button type="button" onclick="clearForm()"
+        class="px-6 py-3 bg-slate-400 hover:bg-slate-500 text-white rounded-xl font-medium transition">
+        🗑 Temizle
+      </button>
+      <button type="submit" id="submitBtn"
+        class="px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg transition">
+        📤 Fatura Gönder
+      </button>
     </div>
+  </form>
+
+  <!-- SONUÇ -->
+  <div id="result" class="hidden mt-6">
+    <div id="resultContent" class="p-6 rounded-xl"></div>
   </div>
 
-  <script>
-    // ── Sabitler ───────────────────────────────────────────────────────────────
-    const WITHHOLDING_RATES = {
-      '601': 70, '602': 50, '603': 70, '604': 50, '605': 50,
-      '606': 50, '607': 50, '608': 70, '609': 50, '610': 20,
-      '611': 20, '612': 40, '613': 40, '614': 50, '615': 50,
-      '616': 90, '617': 20, '618': 20, '619': 20, '620': 20,
-      '622': 20, '623': 20, '624': 50, '625': 30,
-      '626': 20, '627': 20, '801': 70, '802': 50, '803': 70
-    };
+</div>
 
-    let addedTaxes = [];
-    let lastInvoiceUUID = null; // Son oluşturulan fatura UUID'si
+<style>
+  .label { @apply block text-xs font-medium text-slate-600 mb-1; }
+  .input  { @apply w-full border border-slate-300 rounded-lg px-3 py-2 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white; }
+</style>
 
-    // ── Init ───────────────────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function () {
-      const now = new Date();
-      document.getElementById('invoiceDate').value = now.toISOString().split('T')[0];
-      document.getElementById('invoiceTime').value = now.toTimeString().slice(0, 8);
-      document.querySelectorAll('.product-item').forEach(attachListeners);
-      updateCalculations();
+<script>
+// ── Sabitler ───────────────────────────────────────────────────────────────────
+const WH_RATES = {
+  601:70,602:50,603:70,604:50,605:50,606:50,607:50,608:70,609:50,610:20,
+  611:20,612:40,613:40,614:50,615:50,616:90,617:20,618:20,619:20,620:20,
+  622:20,623:20,624:50,625:30,626:20,627:20,801:70,802:50,803:70
+};
+
+let addedTaxes = [];
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  document.getElementById('invoiceDate').value = now.toISOString().split('T')[0];
+  document.getElementById('invoiceTime').value  = now.toTimeString().slice(0, 8);
+  document.querySelectorAll('.product-item').forEach(attachListeners);
+  recalc();
+});
+
+// ── Stopaj ─────────────────────────────────────────────────────────────────────
+function addTax() {
+  const type = document.getElementById('taxTypeSelect').value;
+  const rate = parseFloat(document.getElementById('taxRateInput').value) || 0;
+  if (!type || rate <= 0) { alert('Vergi çeşidi ve oran giriniz'); return; }
+  const names = { V0011: 'KV. STOPAJI', V0003: 'GV. STOPAJI' };
+  addedTaxes.push({ type, rate, name: names[type] || type });
+  renderTaxes(); recalc();
+  document.getElementById('taxTypeSelect').value = '';
+  document.getElementById('taxRateInput').value  = '';
+}
+function removeTax(i) { addedTaxes.splice(i, 1); renderTaxes(); recalc(); }
+function renderTaxes() {
+  document.getElementById('addedTaxes').innerHTML = addedTaxes.map((t, i) => `
+    <div class="flex justify-between items-center bg-white border rounded-lg px-3 py-2 text-sm">
+      <span class="font-medium text-slate-700">${t.name} — %${t.rate}</span>
+      <button type="button" onclick="removeTax(${i})" class="text-red-500 hover:text-red-700 ml-4 font-bold">✕</button>
+    </div>
+  `).join('');
+}
+
+// ── Ürün satırları ─────────────────────────────────────────────────────────────
+function addProduct() {
+  const tpl = document.querySelector('.product-item').cloneNode(true);
+  tpl.querySelectorAll('input[type=number]').forEach(i => {
+    if (i.name === 'productQuantity') i.value = '1';
+    else if (i.name === 'productDiscountRate') i.value = '0';
+    else i.value = '';
+  });
+  tpl.querySelectorAll('input[type=text]').forEach(i => i.value = '');
+  tpl.querySelector('[name=withholdingCode]').value = '';
+  tpl.querySelector('[name=productVatRate]').value  = '20';
+  tpl.querySelector('.productNet').textContent  = '0,00';
+  tpl.querySelector('.productVat').textContent  = '0,00';
+  tpl.querySelector('.productWhAmt').textContent = '0,00';
+  tpl.querySelector('.productWhInfo').classList.add('hidden');
+  document.getElementById('productsContainer').appendChild(tpl);
+  attachListeners(tpl); recalc();
+}
+function removeProduct(btn) {
+  const c = document.getElementById('productsContainer');
+  if (c.children.length > 1) { btn.closest('.product-item').remove(); recalc(); }
+}
+function attachListeners(item) {
+  item.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('input', recalc);
+    el.addEventListener('change', recalc);
+  });
+}
+
+// ── Hesapla ────────────────────────────────────────────────────────────────────
+function recalc() {
+  let grossTotal = 0, discTotal = 0, vatTotal = 0, whBaseTotal = 0, whTotal = 0;
+
+  document.querySelectorAll('.product-item').forEach(item => {
+    const qty  = parseFloat(item.querySelector('[name=productQuantity]').value) || 0;
+    const up   = parseFloat(item.querySelector('[name=productUnitPrice]').value) || 0;
+    const vr   = parseFloat(item.querySelector('[name=productVatRate]').value)   || 0;
+    const dr   = parseFloat(item.querySelector('[name=productDiscountRate]').value) || 0;
+    const whC  = parseInt(item.querySelector('[name=withholdingCode]').value) || 0;
+
+    const gross = qty * up;
+    const disc  = gross * (dr / 100);
+    const net   = gross - disc;
+    const vat   = net * (vr / 100);
+    const whR   = WH_RATES[whC] || 0;
+    const whA   = whC ? vat * (whR / 100) : 0;
+
+    grossTotal += gross;
+    discTotal  += disc;
+    vatTotal   += vat;
+    if (whC) { whBaseTotal += net; whTotal += whA; }
+
+    item.querySelector('.productNet').textContent  = fmt(net);
+    item.querySelector('.productVat').textContent  = fmt(vat);
+    if (whC && whR > 0) {
+      item.querySelector('.productWhInfo').classList.remove('hidden');
+      item.querySelector('.productWhRate').textContent = whR;
+      item.querySelector('.productWhAmt').textContent  = fmt(whA);
+    } else {
+      item.querySelector('.productWhInfo').classList.add('hidden');
+    }
+  });
+
+  const matrah   = grossTotal - discTotal;
+  const included = matrah + vatTotal;
+
+  let stopaj = 0;
+  addedTaxes.forEach(t => { stopaj += matrah * (t.rate / 100); });
+
+  const payable = included - whTotal - stopaj;
+
+  set('sumGross',    fmt(grossTotal) + ' ₺');
+  set('sumDisc',     fmt(discTotal)  + ' ₺');
+  set('sumVat',      fmt(vatTotal)   + ' ₺');
+  set('sumIncluded', fmt(included)   + ' ₺');
+  set('sumWhBase',   fmt(whBaseTotal) + ' ₺');
+  set('sumWH',       fmt(whTotal)     + ' ₺');
+  set('sumStopaj',   fmt(stopaj)      + ' ₺');
+  set('sumPayable',  fmt(payable)     + ' ₺');
+
+  show('rowWH',     whTotal > 0);
+  show('rowStopaj', stopaj > 0);
+}
+
+function fmt(n) { return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function set(id, v) { document.getElementById(id).textContent = v; }
+function show(id, v) {
+  const el = document.getElementById(id);
+  v ? el.classList.remove('hidden') : el.classList.add('hidden');
+}
+
+// ── Temizle ────────────────────────────────────────────────────────────────────
+function clearForm() {
+  if (!confirm('Formu temizlemek istediğinizden emin misiniz?')) return;
+  document.getElementById('invoiceForm').reset();
+  addedTaxes = [];
+  renderTaxes();
+  const now = new Date();
+  document.getElementById('invoiceDate').value = now.toISOString().split('T')[0];
+  document.getElementById('invoiceTime').value  = now.toTimeString().slice(0, 8);
+  const c = document.getElementById('productsContainer');
+  while (c.children.length > 1) c.lastChild.remove();
+  c.firstElementChild.querySelectorAll('input').forEach(i => {
+    if (i.name === 'productQuantity') i.value = '1';
+    else if (i.name === 'productDiscountRate') i.value = '0';
+    else if (i.type !== 'submit') i.value = '';
+  });
+  document.getElementById('result').classList.add('hidden');
+  recalc();
+}
+
+// ── Gönder ─────────────────────────────────────────────────────────────────────
+document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+
+  const taxId = fd.get('buyerTaxId');
+  if (['11111111111','11111111110'].includes(taxId)) {
+    alert('Test vergi numarası kullanılamaz!'); return;
+  }
+
+  // Ürünleri topla
+  const products = [];
+  document.querySelectorAll('.product-item').forEach(item => {
+    products.push({
+      name:           item.querySelector('[name=productName]').value,
+      quantity:       parseFloat(item.querySelector('[name=productQuantity]').value) || 1,
+      unitType:       item.querySelector('[name=productUnitType]').value,
+      unitPrice:      parseFloat(item.querySelector('[name=productUnitPrice]').value) || 0,
+      vatRate:        parseFloat(item.querySelector('[name=productVatRate]').value)   || 0,
+      discountRate:   parseFloat(item.querySelector('[name=productDiscountRate]').value) || 0,
+      withholdingCode: item.querySelector('[name=withholdingCode]').value || undefined,
     });
+  });
 
-    // ── Stopaj ────────────────────────────────────────────────────────────────
-    function addTax() {
-      const type = document.getElementById('taxTypeSelect').value;
-      const rate = parseFloat(document.getElementById('taxRateInput').value) || 0;
-      if (!type || rate <= 0) { alert('Vergi çeşidi ve oran giriniz'); return; }
-      const names = { 'V0011': 'KV. STOPAJI', 'V0003': 'GV. STOPAJI' };
-      addedTaxes.push({ type, rate, name: names[type] || type });
-      renderTaxes();
-      updateCalculations();
-      document.getElementById('taxTypeSelect').value = '';
-      document.getElementById('taxRateInput').value = '';
-    }
+  const payload = {
+    buyerTaxId:      taxId,
+    buyerTitle:      fd.get('buyerTitle')      || undefined,
+    buyerFirstName:  fd.get('buyerFirstName')  || undefined,
+    buyerLastName:   fd.get('buyerLastName')   || undefined,
+    buyerTaxOffice:  fd.get('buyerTaxOffice')  || undefined,
+    buyerAddress:    fd.get('buyerAddress')    || undefined,
+    country:         fd.get('country')         || 'Türkiye',
+    date:            fd.get('invoiceDate'),
+    time:            fd.get('invoiceTime'),
+    invoiceType:     fd.get('invoiceType'),
+    currency:        fd.get('currency'),
+    products,
+    taxes:           addedTaxes,
+    note:            fd.get('note') || undefined,
+  };
+  // boşları temizle
+  Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
 
-    function removeTax(i) {
-      addedTaxes.splice(i, 1);
-      renderTaxes();
-      updateCalculations();
-    }
+  // UI
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '⏳ Gönderiliyor...';
+  const resultDiv = document.getElementById('result');
+  const resultBox = document.getElementById('resultContent');
+  resultDiv.classList.remove('hidden');
+  resultBox.className = 'p-6 rounded-xl bg-yellow-100 text-yellow-800';
+  resultBox.innerHTML  = '⏳ GİB\'e bağlanılıyor, fatura oluşturuluyor...';
 
-    function renderTaxes() {
-      const c = document.getElementById('addedTaxes');
-      c.innerHTML = addedTaxes.map((t, i) => `
-        <div class="flex justify-between items-center bg-white p-2 rounded border text-sm">
-          <span class="font-medium text-gray-700">${t.name} — %${t.rate}</span>
-          <button type="button" onclick="removeTax(${i})" class="text-red-500 hover:text-red-700 ml-2">✕</button>
-        </div>
-      `).join('');
-      const hasStop = addedTaxes.length > 0;
-      document.getElementById('stopajSection').classList.toggle('hidden', !hasStop);
-      document.getElementById('payableSimple').classList.toggle('hidden', hasStop);
-    }
-
-    // ── Ürün satırları ────────────────────────────────────────────────────────
-    function addProduct() {
-      const tpl = document.querySelector('.product-item').cloneNode(true);
-      tpl.querySelectorAll('input').forEach(i => {
-        if (i.name === 'productQuantity') i.value = '1';
-        else if (i.name === 'productVatRate') i.value = '20';
-        else if (i.name === 'productDiscountRate') i.value = '0';
-        else if (!i.classList.contains('withholding-rate-input')) i.value = '';
-      });
-      tpl.querySelector('select[name="withholdingCode"]').value = '';
-      tpl.querySelector('select[name="productVatRate"]').value = '20';
-      tpl.querySelector('.productTotal').textContent = '0,00';
-      tpl.querySelector('.productVatAmount').textContent = '0,00';
-      tpl.querySelector('.withholding-rate').textContent = '0';
-      tpl.querySelector('.withholding-amount').textContent = '0,00';
-      tpl.querySelector('.kdvTevkifatInfo').classList.add('hidden');
-      document.getElementById('productsContainer').appendChild(tpl);
-      attachListeners(tpl);
-      updateCalculations();
-    }
-
-    function removeProduct(btn) {
-      const c = document.getElementById('productsContainer');
-      if (c.children.length > 1) {
-        btn.closest('.product-item').remove();
-        updateCalculations();
-      }
-    }
-
-    function attachListeners(item) {
-      item.querySelectorAll('input, select').forEach(el => {
-        el.addEventListener('input', updateCalculations);
-        el.addEventListener('change', updateCalculations);
-      });
-    }
-
-    // ── Hesaplamalar ──────────────────────────────────────────────────────────
-    function updateCalculations() {
-      let totalProducts = 0, totalDiscount = 0, totalVat = 0;
-      let withholdingBase = 0, withholdingVat = 0;
-
-      document.querySelectorAll('.product-item').forEach(item => {
-        const qty         = parseFloat(item.querySelector('[name="productQuantity"]').value) || 0;
-        const price       = parseFloat(item.querySelector('[name="productUnitPrice"]').value) || 0;
-        const vatRateEl   = item.querySelector('[name="productVatRate"]');
-        const vatRate     = parseFloat(vatRateEl?.value) || 0;
-        const discRate    = parseFloat(item.querySelector('[name="productDiscountRate"]').value) || 0;
-        const whCode      = item.querySelector('[name="withholdingCode"]').value;
-
-        const gross    = qty * price;
-        const discount = gross * (discRate / 100);
-        const net      = gross - discount;
-        const vat      = net  * (vatRate / 100);
-
-        totalProducts += gross;
-        totalDiscount += discount;
-        totalVat      += vat;
-
-        const whRate   = whCode ? (WITHHOLDING_RATES[whCode] || 0) : 0;
-        const whAmount = whCode ? vat * (whRate / 100) : 0;
-
-        if (whCode && whRate > 0) {
-          withholdingBase += net;
-          withholdingVat  += whAmount;
-          item.querySelector('.kdvTevkifatInfo').classList.remove('hidden');
-        } else {
-          item.querySelector('.kdvTevkifatInfo').classList.add('hidden');
-        }
-
-        item.querySelector('.productTotal').textContent   = fmt(net);
-        item.querySelector('.productVatAmount').textContent = fmt(vat);
-        item.querySelector('.withholding-rate').textContent  = whRate;
-        item.querySelector('.withholding-amount').textContent = fmt(whAmount);
-        item.querySelector('.withholding-rate-input').value   = whRate;
-      });
-
-      const grandTotal = totalProducts - totalDiscount + totalVat;
-      let stopajTotal = 0;
-      const matrah = totalProducts - totalDiscount;
-      addedTaxes.forEach(tax => { stopajTotal += matrah * (tax.rate / 100); });
-      const payable = grandTotal - withholdingVat - stopajTotal;
-
-      document.getElementById('totalProducts').textContent      = fmt(totalProducts) + ' ₺';
-      document.getElementById('totalDiscount').textContent      = fmt(totalDiscount) + ' ₺';
-      document.getElementById('totalVat').textContent           = fmt(totalVat) + ' ₺';
-      document.getElementById('grandTotal').textContent         = fmt(grandTotal) + ' ₺';
-      document.getElementById('withholdingBaseTotal').textContent = fmt(withholdingBase) + ' ₺';
-      document.getElementById('withholdingVatTotal').textContent  = fmt(withholdingVat) + ' ₺';
-      document.getElementById('stopajTotal').textContent        = fmt(stopajTotal) + ' ₺';
-      document.getElementById('payableTotal').textContent       = fmt(payable) + ' ₺';
-      document.getElementById('payableTotalSimple').textContent = fmt(payable) + ' ₺';
-    }
-
-    function fmt(n) {
-      if (n === undefined || n === null || isNaN(n)) return "0,00";
-      return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    // ── Form temizle ──────────────────────────────────────────────────────────
-    function clearForm() {
-      if (!confirm('Formu temizlemek istediğinize emin misiniz?')) return;
-      document.getElementById('invoiceForm').reset();
-      addedTaxes = [];
-      renderTaxes();
-      const now = new Date();
-      document.getElementById('invoiceDate').value = now.toISOString().split('T')[0];
-      document.getElementById('invoiceTime').value  = now.toTimeString().slice(0, 8);
-      const c = document.getElementById('productsContainer');
-      const first = c.querySelector('.product-item');
-      c.innerHTML = '';
-      c.appendChild(first);
-      first.querySelectorAll('input').forEach(i => {
-        if (i.name === 'productQuantity') i.value = '1';
-        else if (i.name !== 'withholdingRate') i.value = '';
-      });
-      updateCalculations();
-      document.getElementById('result').classList.add('hidden');
-      lastInvoiceUUID = null;
-    }
-
-    // ── Fatura Görüntüleme Fonksiyonları ───────────────────────────────────────
-    async function viewInvoice(uuid) {
-      if (!uuid) {
-        alert('Fatura UUID bulunamadı!');
-        return;
-      }
-      
-      try {
-        const resp = await fetch('/api/get-invoice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uuid, type: 'html' })
-        });
-        
-        if (!resp.ok) {
-          const err = await resp.json();
-          alert('Hata: ' + (err.message || 'Fatura görüntülenemedi'));
-          return;
-        }
-        
-        const html = await resp.text();
-        const win = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
-        win.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="UTF-8">
-              <title>E-Arşiv Fatura - ${uuid}</title>
-              <style>
-                body { margin: 0; font-family: Arial, sans-serif; }
-                .toolbar { 
-                  position: sticky; 
-                  top: 0; 
-                  background: #f3f4f6; 
-                  padding: 15px; 
-                  border-bottom: 1px solid #ddd;
-                  display: flex;
-                  gap: 10px;
-                  align-items: center;
-                  z-index: 1000;
-                }
-                .toolbar button {
-                  padding: 8px 16px;
-                  border: none;
-                  border-radius: 4px;
-                  cursor: pointer;
-                  font-size: 14px;
-                }
-                .btn-print { background: #3b82f6; color: white; }
-                .btn-close { background: #6b7280; color: white; }
-                .content { padding: 20px; }
-                @media print {
-                  .toolbar { display: none; }
-                  .content { padding: 0; }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="toolbar">
-                <button class="btn-print" onclick="window.print()">🖨️ Yazdır / PDF Kaydet</button>
-                <button class="btn-close" onclick="window.close()">✕ Kapat</button>
-                <span style="margin-left: auto; color: #666; font-size: 12px;">UUID: ${uuid}</span>
-              </div>
-              <div class="content">
-                ${html}
-              </div>
-            </body>
-          </html>
-        `);
-        win.document.close();
-        
-      } catch (err) {
-        alert('Bağlantı hatası: ' + err.message);
-      }
-    }
-
-    async function downloadPDF(uuid) {
-      if (!uuid) {
-        alert('Fatura UUID bulunamadı!');
-        return;
-      }
-      
-      // PDF görüntüleme penceresi aç (tarayıcı PDF olarak kaydedebilir)
-      viewInvoice(uuid);
-    }
-
-    // ── Form gönder ───────────────────────────────────────────────────────────
-    document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = new FormData(form);
-      const taxId = formData.get('buyerTaxId');
-
-      if (taxId === '11111111111' || taxId === '11111111110') {
-        alert('Test vergi numarası kullanılamaz!');
-        return;
-      }
-
-      const products = [];
-      document.querySelectorAll('.product-item').forEach(item => {
-        const qty        = parseFloat(item.querySelector('[name="productQuantity"]').value) || 0;
-        const price      = parseFloat(item.querySelector('[name="productUnitPrice"]').value) || 0;
-        const vatRateEl  = item.querySelector('[name="productVatRate"]');
-        const vatRate    = parseFloat(vatRateEl?.value) || 0;
-        const discRate   = parseFloat(item.querySelector('[name="productDiscountRate"]').value) || 0;
-        const whCode     = item.querySelector('[name="withholdingCode"]').value;
-        const whRate     = whCode ? (WITHHOLDING_RATES[whCode] || 0) : 0;
-
-        const gross    = qty * price;
-        const discount = gross * (discRate / 100);
-        const net      = gross - discount;
-        const vat      = net * (vatRate / 100);
-
-        products.push({
-          name: item.querySelector('[name="productName"]').value,
-          quantity: qty,
-          unitType: item.querySelector('[name="productUnitType"]').value,
-          unitPrice: price,
-          vatRate,
-          vatAmount: vat,
-          discountRate: discRate,
-          discountAmount: discount,
-          totalAmount: net,
-          withholdingCode:   whCode || undefined,
-          withholdingRate:   whRate,
-          withholdingAmount: whCode ? vat * (whRate / 100) : 0
-        });
-      });
-
-      const payload = {
-        buyerTaxId:      taxId,
-        buyerTitle:      formData.get('buyerTitle')      || undefined,
-        buyerFirstName:  formData.get('buyerFirstName')  || undefined,
-        buyerLastName:   formData.get('buyerLastName')   || undefined,
-        buyerTaxOffice:  formData.get('buyerTaxOffice')  || undefined,
-        buyerAddress:    formData.get('buyerAddress')    || undefined,
-        country:         formData.get('country')         || 'Türkiye',
-        date:            formData.get('invoiceDate'),
-        time:            formData.get('invoiceTime'),
-        invoiceType:     formData.get('invoiceType'),
-        currency:        formData.get('currency'),
-        products,
-        taxes:           addedTaxes,
-        note:            formData.get('note') || undefined
-      };
-
-      Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
-
-      const resultDiv     = document.getElementById('result');
-      const resultContent = document.getElementById('resultContent');
-      resultDiv.classList.remove('hidden');
-      resultContent.className = 'p-6 rounded-lg bg-yellow-100 text-yellow-800';
-      resultContent.innerHTML = '⏳ Fatura gönderiliyor...';
-
-      try {
-        const resp = await fetch('/api/send-invoice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await resp.json();
-
-        if (data.success) {
-          lastInvoiceUUID = data.data.invoiceUUID;
-          const t = data.data.totals || {};
-          resultContent.className = 'p-6 rounded-lg bg-green-100 text-green-800';
-          resultContent.innerHTML = `
-            <div class="font-bold text-lg mb-3">✅ Fatura Başarıyla Oluşturuldu!</div>
-            <div class="space-y-1 text-sm">
-              <div>UUID: <code class="bg-green-200 px-2 py-0.5 rounded text-xs">${data.data.invoiceUUID || '—'}</code></div>
-              <div>Belge No: <strong>${data.data.documentNumber || '—'}</strong></div>
-              <div>Alıcı VKN: <strong>${data.data.taxIdUsed}</strong></div>
-              <div>Tip: <strong>${data.data.invoiceType}</strong></div>
-              ${t.matrah ? `
-              <hr class="my-2 border-green-300">
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div>Matrah: <strong>${fmt(t.matrah)} ₺</strong></div>
-                <div>KDV: <strong>${fmt(t.kdv)} ₺</strong></div>
-                ${t.kdvTevkifat > 0 ? `<div class="text-orange-600">KDV Tevkifat: <strong>-${fmt(t.kdvTevkifat)} ₺</strong></div>` : ''}
-                ${t.stopaj > 0 ? `<div class="text-purple-600">Stopaj: <strong>-${fmt(t.stopaj)} ₺</strong></div>` : ''}
-                <div>Vergiler Dahil: <strong>${fmt(t.vergilerDahil)} ₺</strong></div>
-                <div class="text-base font-bold text-green-700">Ödenecek: ${fmt(t.odenecek)} ₺</div>
-              </div>
-              ` : ''}
-            </div>
-            
-            <!-- Görüntüleme Butonları -->
-            <div class="mt-4 flex flex-wrap gap-2">
-              <button onclick="viewInvoice('${data.data.invoiceUUID}')" 
-                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition text-sm font-medium flex items-center gap-2">
-                🌐 HTML Görüntüle
-              </button>
-              <button onclick="downloadPDF('${data.data.invoiceUUID}')" 
-                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition text-sm font-medium flex items-center gap-2">
-                📄 PDF İndir
-              </button>
-              <a href="https://earsivportal.efatura.gov.tr/login.jsp" target="_blank"
-                class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md transition text-sm font-medium flex items-center gap-2">
-                🔗 GİB Portal
-              </a>
-            </div>
-          `;
-        } else {
-          resultContent.className = 'p-6 rounded-lg bg-red-100 text-red-800';
-          resultContent.innerHTML = `
-            <div class="font-bold text-lg mb-2">❌ Hata!</div>
-            <div>${data.error}</div>
-            <div class="text-sm mt-1">${data.message || ''}</div>
-            ${data.errorCode ? `<div class="text-xs mt-1">Hata Kodu: ${data.errorCode}</div>` : ''}
-          `;
-        }
-      } catch (err) {
-        resultContent.className = 'p-6 rounded-lg bg-red-100 text-red-800';
-        resultContent.innerHTML = `<strong>Bağlantı Hatası:</strong> ${err.message}`;
-      }
+  try {
+    const resp = await fetch('/api/send-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
+    const data = await resp.json();
 
-    updateCalculations();
-  </script>
+    if (data.success) {
+      const t = data.data.totals || {};
+      resultBox.className = 'p-6 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900';
+      resultBox.innerHTML = `
+        <p class="text-xl font-bold mb-3">✅ Fatura Başarıyla Oluşturuldu!</p>
+        <div class="space-y-1 text-sm">
+          <p>UUID: <code class="bg-emerald-200 px-2 py-0.5 rounded font-mono">${data.data.invoiceUUID}</code></p>
+          <p>Alıcı VKN: <b>${data.data.taxIdUsed}</b> &nbsp;|&nbsp; Tip: <b>${data.data.invoiceType}</b></p>
+          ${t.matrah !== undefined ? `
+          <hr class="my-2 border-emerald-200">
+          <p>Matrah: <b>${fmt(t.matrah)} ₺</b></p>
+          <p>KDV: <b>${fmt(t.kdv)} ₺</b></p>
+          ${t.kdvTevkifat > 0 ? `<p>KDV Tevkifat (−): <b>${fmt(t.kdvTevkifat)} ₺</b></p>` : ''}
+          ${t.stopaj > 0       ? `<p>Stopaj (−): <b>${fmt(t.stopaj)} ₺</b></p>`          : ''}
+          <p>Vergiler Dahil: <b>${fmt(t.vergilerDahil)} ₺</b></p>
+          <p class="text-lg font-bold mt-1">Ödenecek: ${fmt(t.odenecek)} ₺</p>
+          ` : ''}
+        </div>`;
+    } else {
+      resultBox.className = 'p-6 rounded-xl bg-red-50 border border-red-300 text-red-900';
+      resultBox.innerHTML = `
+        <p class="text-xl font-bold mb-2">❌ Hata!</p>
+        <p>${data.error || 'Bilinmeyen hata'}</p>
+        ${data.message  ? `<p class="text-sm mt-1 text-red-700">${data.message}</p>` : ''}
+        ${data.errorCode ? `<p class="text-xs mt-1 text-red-500">Kod: ${data.errorCode}</p>` : ''}`;
+    }
+  } catch (err) {
+    resultBox.className = 'p-6 rounded-xl bg-red-50 border border-red-300 text-red-900';
+    resultBox.innerHTML = `<b>Bağlantı Hatası:</b> ${err.message}`;
+  } finally {
+    btn.disabled = false; btn.textContent = '📤 Fatura Gönder';
+    resultDiv.scrollIntoView({ behavior: 'smooth' });
+  }
+});
+
+recalc();
+</script>
 </body>
 </html>

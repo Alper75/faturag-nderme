@@ -1,482 +1,255 @@
 /**
- * send-invoice.js — E-Arşiv Fatura API
+ * api/send-invoice.js
+ * bilaleren/e-fatura paketi (npm: e-fatura@^2.0.1)
+ * https://github.com/bilaleren/e-fatura
  */
-const Fatura = require('./Fatura');
-const { v4: uuidv4 } = require('uuid'); // ✅ Ekle
-// ─── Sabitler ─────────────────────────────────────────────────────────────────
 
-const INVOICE_TYPES = {
-    'SATIS': 'SATIS',
-    'TEVKIFAT': 'TEVKIFAT',
-    'IADE': 'IADE',
-    'ISTISNA': 'ISTISNA',
-    'OZELMATRAH': 'OZELMATRAH',
-    'IHRACKAYITLI': 'IHRACKAYITLI'
-};
+const {
+  default: EInvoice,
+  InvoiceType,
+  EInvoiceUnitType,
+  EInvoiceCurrencyType,
+  EInvoiceApiError,
+  EInvoiceApiErrorCode,
+  EInvoiceMissingTokenError,
+  EInvoiceMissingCredentialsError,
+} = require('e-fatura');
 
-const UNIT_TYPES = {
-    'C62': 'C62', 'DAY': 'DAY', 'HUR': 'HUR', 'KGM': 'KGM',
-    'LTR': 'LTR', 'MTR': 'MTR', 'MTK': 'MTK', 'MTQ': 'MTQ',
-    'ADET': 'C62', 'PAKET': 'PA', 'KUTU': 'BX',
-    'KG': 'KGM', 'LT': 'LTR', 'TON': 'TNE',
-    'SAAT': 'HUR', 'GUN': 'DAY', 'AY': 'MON', 'YIL': 'ANN'
-};
-
-const CURRENCIES = { 'TRY': 'TRY', 'USD': 'USD', 'EUR': 'EUR', 'GBP': 'GBP' };
-
+// ─── KDV Tevkifat kodları → KDV üzerindeki tevkifat oranı (%) ────────────────
+// Örn: 625 → 30 → hesaplanan KDV'nin %30'u tevkif edilir
 const WITHHOLDING_RATES = {
-    '601': 70, '602': 50, '603': 70, '604': 50, '605': 50,
-    '606': 50, '607': 50, '608': 70, '609': 50, '610': 20,
-    '611': 20, '612': 40, '613': 40, '614': 50, '615': 50,
-    '616': 90, '617': 20, '618': 20, '619': 20, '620': 20,
-    '621': 20, '622': 20, '623': 20, '624': 50, '625': 30,
-    '626': 20, '627': 20, '801': 70, '802': 50, '803': 70
+  601: 70, 602: 50, 603: 70, 604: 50, 605: 50,
+  606: 50, 607: 50, 608: 70, 609: 50, 610: 20,
+  611: 20, 612: 40, 613: 40, 614: 50, 615: 50,
+  616: 90, 617: 20, 618: 20, 619: 20, 620: 20,
+  622: 20, 623: 20, 624: 50, 625: 30,
+  626: 20, 627: 20, 801: 70, 802: 50, 803: 70,
 };
 
-const WITHHOLDING_NAMES = {
-    '601': 'Yapım İşleri [KDVGUT-(I/C-2.1.3.2.1)]',
-    '602': 'Etüt, Plan-Proje, Danışmanlık [KDVGUT-(I/C-2.1.3.2.2)]',
-    '603': 'Makine, Teçhizat Tadil, Bakım [KDVGUT-(I/C-2.1.3.2.3)]',
-    '604': 'Yemek Servis [KDVGUT-(I/C-2.1.3.2.4)]',
-    '605': 'İşgücü Temin [KDVGUT-(I/C-2.1.3.2.5)]',
-    '606': 'Yapı Denetim [KDVGUT-(I/C-2.1.3.2.6)]',
-    '607': 'Fason Tekstil [KDVGUT-(I/C-2.1.3.2.7)]',
-    '608': 'Turistik Mağaza [KDVGUT-(I/C-2.1.3.2.8)]',
-    '609': 'Spor Kulübü [KDVGUT-(I/C-2.1.3.2.9)]',
-    '610': 'Temizlik [KDVGUT-(I/C-2.1.3.2.10)]',
-    '611': 'Bahçe Bakım [KDVGUT-(I/C-2.1.3.2.11)]',
-    '612': 'Servis Taşımacılık [KDVGUT-(I/C-2.1.3.2.12)]',
-    '613': 'Baskı/Basım [KDVGUT-(I/C-2.1.3.2.13)]',
-    '614': 'Külçe Metal [KDVGUT-(I/C-2.1.3.3.1)]',
-    '615': 'Bakır/Çinko/Demir [KDVGUT-(I/C-2.1.3.3.2)]',
-    '616': 'Hurda ve Atık [KDVGUT-(I/C-2.1.3.3.3)]',
-    '617': 'Plastik/Metal Hurda [KDVGUT-(I/C-2.1.3.3.3)]',
-    '618': 'Pamuk/Yün [KDVGUT-(I/C-2.1.3.3.4)]',
-    '619': 'Ağaç Ürünleri [KDVGUT-(I/C-2.1.3.3.5)]',
-    '620': 'Yük Taşımacılığı [KDVGUT-(I/C-2.1.3.2.14)]',
-    '621': 'Ticari Reklam (Kısmi) [KDVGUT-(I/C-2.1.3.2.15)]',
-    '622': 'Güvenlik [KDVGUT-(I/C-2.1.3.2.16)]',
-    '623': 'Fuar/Sergi [KDVGUT-(I/C-2.1.3.2.17)]',
-    '624': 'Depolama [KDVGUT-(I/C-2.1.3.2.18)]',
-    '625': 'Ticari Reklam [KDVGUT-(I/C-2.1.3.2.15)]',
-    '626': 'Tekstil Teslim [KDVGUT-(I/C-2.1.3.3.6)]',
-    '627': 'Diğer Hizmetler [KDVGUT-(I/C-2.1.3.2.22)]',
-    '801': 'Ticari Reklam (Stopaj Dahil)',
-    '802': 'Yapım İşleri (Stopaj Dahil)',
-    '803': 'Makine Onarım (Stopaj Dahil)'
+// EInvoiceUnitType string → enum map
+const UNIT_MAP = {
+  C62: EInvoiceUnitType.ADET,   ADET: EInvoiceUnitType.ADET,
+  HUR: EInvoiceUnitType.SAAT,   SAAT: EInvoiceUnitType.SAAT,
+  DAY: EInvoiceUnitType.GUN,    GUN:  EInvoiceUnitType.GUN,
+  MON: EInvoiceUnitType.AY,     AY:   EInvoiceUnitType.AY,
+  ANN: EInvoiceUnitType.YIL,    YIL:  EInvoiceUnitType.YIL,
+  KGM: EInvoiceUnitType.KG,     KG:   EInvoiceUnitType.KG,
+  LTR: EInvoiceUnitType.LT,     LT:   EInvoiceUnitType.LT,
+  TNE: EInvoiceUnitType.TON,    TON:  EInvoiceUnitType.TON,
+  MTR: EInvoiceUnitType.MTR,    MTR:  EInvoiceUnitType.MTR,
+  MTK: EInvoiceUnitType.MTK,    MTK:  EInvoiceUnitType.MTK,
+  MTQ: EInvoiceUnitType.MTQ,    MTQ:  EInvoiceUnitType.MTQ,
+  PA:  EInvoiceUnitType.PAKET,  PAKET: EInvoiceUnitType.PAKET,
+  BX:  EInvoiceUnitType.KUTU,   KUTU:  EInvoiceUnitType.KUTU,
 };
 
-// ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────────
-
-function formatDate(d) {
-    // Eğer d parametresi "2026-04-03" formatındaysa
-    if (d && d.includes("-")) {
-        const parts = d.split('-');
-        if (parts.length === 3) {
-            // YYYY-MM-DD -> DD/MM/YYYY
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-    }
-
-    // Varsayılan bugünün tarihi
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    return `${day}/${month}/${year}`;
+function r(n) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-function formatTime(t) {
-    return t || new Date().toTimeString().slice(0, 8);
+// YYYY-MM-DD → DD/MM/YYYY
+function toGibDate(d) {
+  if (!d) return undefined;
+  if (d.includes('/')) return d;
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
 }
-
-function round2(n) {
-    return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-// Güvenli loglama - circular reference yok
-function safeLog(label, obj) {
-    try {
-        console.log(label, JSON.stringify(obj, null, 2));
-    } catch (e) {
-        console.log(label, '[Circular structure]', typeof obj, Object.keys(obj || {}));
-    }
-}
-
-// ─── Ana fatura veri oluşturma ─────────────────────────────────────────────────
-
-function buildInvoiceData(body) {
-    console.log('=== buildInvoiceData başladı ===');
-
-    // ── Ürün satırları ──────────────────────────────────────────────────────────
-    const malHizmetTable = body.products.map((p, index) => {
-        const miktar = parseFloat(p.quantity) || 0;
-        const birimFiyat = parseFloat(p.unitPrice) || 0;
-        const kdvOrani = parseFloat(p.vatRate) || 0;
-        const iskontoOrani = parseFloat(p.discountRate) || 0;
-
-        const malHizmetTutari = round2(miktar * birimFiyat);
-        const iskontoTutari = round2(malHizmetTutari * (iskontoOrani / 100));
-        const netTutar = round2(malHizmetTutari - iskontoTutari);
-        const kdvTutari = round2(netTutar * (kdvOrani / 100));
-
-        const tevkifatKodu = p.withholdingCode || '';
-        let tevkifatOrani = 0;
-        let tevkifatTutari = 0;
-
-        if (tevkifatKodu && WITHHOLDING_RATES[tevkifatKodu]) {
-            tevkifatOrani = WITHHOLDING_RATES[tevkifatKodu];
-            tevkifatTutari = round2(kdvTutari * (tevkifatOrani / 100));
-        }
-
-        return {
-            siraNo: index + 1,
-            malHizmet: p.name,
-            miktar,
-            birim: UNIT_TYPES[p.unitType] || 'C62',
-            birimFiyat,
-            malHizmetTutari,
-            iskontoArttm: 'Iskonto',
-            iskontoOrani,
-            iskontoTutari,
-            iskontoNedeni: '',
-            fiyat: netTutar,
-            kdvOrani,
-            kdvTutari,
-            tevkifatKodu,
-            _tevkifatOrani: tevkifatOrani,
-            _tevkifatTutari: tevkifatTutari,
-            gtip: '',
-            ozelMatrahNedeni: 0,
-            ozelMatrahTutari: 0,
-            tevkifatKodu_v9015: tevkifatKodu ? parseInt(tevkifatKodu) : 0
-        };
-    });
-
-    // ── Genel toplamlar ─────────────────────────────────────────────────────────
-    const matrah = round2(malHizmetTable.reduce((s, p) => s + p.fiyat, 0));
-    const toplamIskonto = round2(malHizmetTable.reduce((s, p) => s + p.iskontoTutari, 0));
-    const hesaplananKDV = round2(malHizmetTable.reduce((s, p) => s + p.kdvTutari, 0));
-
-    const hesaplananV9015 = round2(
-        malHizmetTable
-            .filter(p => p.tevkifatKodu)
-            .reduce((s, p) => s + p._tevkifatTutari, 0)
-    );
-
-    let hesaplananV0011 = 0;
-    let stopajList = [];
-
-    if (body.taxes && body.taxes.length > 0) {
-        body.taxes.forEach(tax => {
-            const stopajTutar = round2(matrah * (parseFloat(tax.rate) / 100));
-            if (tax.type === 'V0011') {
-                hesaplananV0011 += stopajTutar;
-                stopajList.push({
-                    kod: '0011',
-                    ad: 'KV. STOPAJI',
-                    oran: parseFloat(tax.rate),
-                    tutar: stopajTutar
-                });
-            } else if (tax.type === 'V0003') {
-                hesaplananV0011 += stopajTutar;
-                stopajList.push({
-                    kod: '0003',
-                    ad: 'GV. STOPAJI',
-                    oran: parseFloat(tax.rate),
-                    tutar: stopajTutar
-                });
-            }
-        });
-        hesaplananV0011 = round2(hesaplananV0011);
-    }
-
-    const vergilerDahilToplam = round2(matrah + hesaplananKDV);
-    const odenecekTutar = round2(vergilerDahilToplam - hesaplananV9015 - hesaplananV0011);
-
-    // ── vergiTable ────────────────────────────────────────────────────────────
-    const vergiTable = [];
-
-    if (hesaplananV9015 > 0 && malHizmetTable.some(p => p.tevkifatKodu)) {
-        const firstWh = malHizmetTable.find(p => p.tevkifatKodu);
-        vergiTable.push({
-            vergiKodu: 'V9015',
-            vergiAdi: WITHHOLDING_NAMES[firstWh.tevkifatKodu] || 'KDV Tevkifatı',
-            vergiTutari: hesaplananV9015,
-            tevkifatOrani: firstWh._tevkifatOrani,
-            tevkifatKodu: firstWh.tevkifatKodu
-        });
-    }
-
-    stopajList.forEach(s => {
-        vergiTable.push({
-            vergiKodu: `V${s.kod}`,
-            vergiAdi: s.ad,
-            vergiTutari: s.tutar,
-            stopajOrani: s.oran
-        });
-    });
-
-    // ── Fatura nesnesi ──────────────────────────────────────────────────────────
-    const invoiceData = {
-        faturaUuid: body.uuid || uuidv4(),
-        belgeNumarasi: '',
-        faturaTarihi: formatDate(body.date),
-        saat: formatTime(body.time),
-        paraBirimi: CURRENCIES[body.currency] || 'TRY',
-        dovzTLkur: (body.currency && body.currency !== 'TRY') ? (body.currencyRate || '1') : '0',
-        faturaTipi: INVOICE_TYPES[body.invoiceType] || 'SATIS',
-
-        vknTckn: body.buyerTaxId,
-        aliciUnvan: body.buyerTitle || '',
-        aliciAdi: body.buyerFirstName || '',
-        aliciSoyadi: body.buyerLastName || '',
-        vergiDairesi: body.buyerTaxOffice || '',
-        ulke: body.country || 'Türkiye',
-        bulvarcaddesokak: body.buyerAddress || '',
-        mahalleSemtIlce: '',
-        sehir: '',
-
-        malHizmetTable: malHizmetTable.map(p => ({
-            malHizmet: p.malHizmet,
-            miktar: p.miktar,
-            birim: p.birim,
-            birimFiyat: p.birimFiyat,
-            kdvOrani: p.kdvOrani,
-            fiyat: p.fiyat,
-            iskontoArttm: p.iskontoArttm,
-            iskontoOrani: p.iskontoOrani,
-            iskontoTutari: p.iskontoTutari,
-            iskontoNedeni: p.iskontoNedeni,
-            malHizmetTutari: p.malHizmetTutari,
-            kdvTutari: p.kdvTutari,
-            tevkifatKodu: p.tevkifatKodu_v9015 || 0,
-            ozelMatrahNedeni: 0,
-            ozelMatrahTutari: 0,
-            gtip: ''
-        })),
-
-        vergiTable,
-
-        matrah,
-        malhizmetToplamTutari: matrah,
-        toplamIskonto,
-        hesaplanankdv: hesaplananKDV,
-        tevkifataTabiIslemTutar: round2(malHizmetTable.filter(p => p.tevkifatKodu).reduce((s, p) => s + p.fiyat, 0)),
-        tevkifataTabiIslemKdv: round2(malHizmetTable.filter(p => p.tevkifatKodu).reduce((s, p) => s + p.kdvTutari, 0)),
-        hesaplananV9015,
-        hesaplananV0011,
-        vergilerToplami: hesaplananKDV,
-        vergilerDahilToplamTutar: vergilerDahilToplam,
-        toplamMasraflar: 0,
-        odenecekTutar,
-
-        irsaliyeNumarasi: body.waybillNumber || '',
-        irsaliyeTarihi: body.waybillDate ? formatDate(body.waybillDate) : '',
-
-        siparisNumarasi: body.orderNumber || '',
-        siparisTarihi: body.orderDate ? formatDate(body.orderDate) : '',
-
-        not: body.note || '',
-
-        iadeTable: [],
-        hangiTip: '5000/30000'
-    };
-
-    // ✅ Güvenli log
-    console.log('Fatura verisi hazırlandı:', {
-        faturaTipi: invoiceData.faturaTipi,
-        matrah: invoiceData.matrah,
-        hesaplananKDV: invoiceData.hesaplanankdv,
-        odenecekTutar: invoiceData.odenecekTutar,
-        urunSayisi: invoiceData.malHizmetTable.length
-    });
-
-    return invoiceData;
-}
-
-// ─── Vercel Handler ────────────────────────────────────────────────────────────
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
 
-    if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Method not allowed' });
+  const { GIB_USERNAME, GIB_PASSWORD, TEST_MODE } = process.env;
+  if (!GIB_USERNAME || !GIB_PASSWORD) {
+    return res.status(500).json({ success: false, error: 'GIB_USERNAME / GIB_PASSWORD tanımlı değil' });
+  }
+
+  const body = req.body;
+
+  // ── Validasyon ──────────────────────────────────────────────────────────────
+  if (!body.buyerTaxId) {
+    return res.status(400).json({ success: false, error: 'buyerTaxId zorunludur' });
+  }
+  if (['11111111111', '11111111110'].includes(body.buyerTaxId)) {
+    return res.status(400).json({ success: false, error: 'Test vergi numarası kullanılamaz' });
+  }
+  if (!body.products || !body.products.length) {
+    return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
+  }
+
+  // ── Satır hesaplamaları ─────────────────────────────────────────────────────
+  const lines = body.products.map((p) => {
+    const qty    = parseFloat(p.quantity)     || 0;
+    const up     = parseFloat(p.unitPrice)    || 0;
+    const vr     = parseFloat(p.vatRate)      || 0;
+    const dr     = parseFloat(p.discountRate) || 0;
+    const whCode = p.withholdingCode ? parseInt(p.withholdingCode) : 0;
+
+    const gross  = r(qty * up);
+    const disc   = r(gross * (dr / 100));
+    const net    = r(gross - disc);      // price (KDV hariç)
+    const vat    = r(net * (vr / 100));
+    const whRate = WITHHOLDING_RATES[whCode] || 0;
+    const whAmt  = whCode ? r(vat * (whRate / 100)) : 0;
+
+    const product = {
+      name:                       p.name,
+      quantity:                   qty,
+      unitType:                   UNIT_MAP[p.unitType] || EInvoiceUnitType.ADET,
+      unitPrice:                  up,
+      price:                      net,
+      discountOrIncrement:        'İskonto',
+      discountOrIncrementRate:    dr,
+      discountOrIncrementAmount:  disc,
+      discountOrIncrementReason:  '',
+      vatRate:                    vr,
+      vatAmount:                  vat,
+      totalAmount:                r(net + vat),
+    };
+
+    // Tevkifat alanları (GİB ek alan olarak okur)
+    if (whCode && whRate > 0) {
+      product.tevkifatKodu   = whCode;
+      product.tevkifatOrani  = whRate;
+      product.tevkifatTutari = whAmt;
     }
 
-    const { GIB_USERNAME, GIB_PASSWORD, TEST_MODE } = process.env;
+    return { product, net, vat, whAmt, whCode };
+  });
 
-    if (!GIB_USERNAME || !GIB_PASSWORD) {
-        return res.status(500).json({
-            success: false,
-            error: 'GIB kimlik bilgileri yapılandırılmamış (GIB_USERNAME / GIB_PASSWORD)'
-        });
+  // ── Genel toplamlar ─────────────────────────────────────────────────────────
+  const totalDisc   = r(lines.reduce((s, l) => s + l.product.discountOrIncrementAmount, 0));
+  const matrah      = r(lines.reduce((s, l) => s + l.net, 0));
+  const totalVAT    = r(lines.reduce((s, l) => s + l.vat, 0));
+  const totalWH     = r(lines.reduce((s, l) => s + l.whAmt, 0));
+  const grossTotal  = r(lines.reduce((s, l) => s + r(l.product.unitPrice * (l.product.quantity || 1)), 0));
+
+  // Stopaj (KV/GV Stopajı — matrah üzerinden)
+  let stopaj = 0;
+  if (body.taxes && body.taxes.length) {
+    body.taxes.forEach((t) => {
+      if (t.type === 'V0011' || t.type === 'V0003') {
+        stopaj = r(stopaj + r(matrah * (parseFloat(t.rate) / 100)));
+      }
+    });
+  }
+
+  const includedTaxes = r(matrah + totalVAT);
+  const payable       = r(includedTaxes - totalWH - stopaj);
+
+  // ── Payload ─────────────────────────────────────────────────────────────────
+  const payload = {
+    date:        toGibDate(body.date),
+    time:        body.time,
+    invoiceType: InvoiceType[body.invoiceType] || InvoiceType.SATIS,
+    currency:
+      body.currency === 'USD' ? EInvoiceCurrencyType.DOLAR
+    : body.currency === 'EUR' ? EInvoiceCurrencyType.EURO
+    : body.currency === 'GBP' ? EInvoiceCurrencyType.STERLIN
+    : EInvoiceCurrencyType.TURK_LIRASI,
+
+    taxOrIdentityNumber: body.buyerTaxId,
+    buyerTitle:          body.buyerTitle     || undefined,
+    buyerFirstName:      body.buyerFirstName || undefined,
+    buyerLastName:       body.buyerLastName  || undefined,
+    taxOffice:           body.buyerTaxOffice || undefined,
+    fullAddress:         body.buyerAddress   || undefined,
+
+    products: lines.map((l) => l.product),
+
+    // Zorunlu toplamlar
+    base:                    matrah,
+    productsTotalPrice:      grossTotal,
+    totalDiscountOrIncrement: totalDisc,
+    calculatedVAT:           totalVAT,
+    totalTaxes:              totalVAT,
+    includedTaxesTotalPrice: includedTaxes,
+    paymentPrice:            payable,
+
+    note:          body.note          || undefined,
+    orderNumber:   body.orderNumber   || undefined,
+    orderDate:     toGibDate(body.orderDate),
+    waybillNumber: body.waybillNumber || undefined,
+    waybillDate:   toGibDate(body.waybillDate),
+  };
+
+  // Tevkifat/stopaj ek alanları (kütüphane bunları olduğu gibi GİB'e iletir)
+  if (totalWH > 0) {
+    payload.tevkifataTabiIslemTutar = r(lines.filter((l) => l.whCode > 0).reduce((s, l) => s + l.net, 0));
+    payload.hesaplananV9015         = totalWH;
+  }
+  if (stopaj > 0) {
+    payload.hesaplananV0011 = stopaj;
+    payload.taxType = body.taxes.map((t) => `${t.type}-%${t.rate}`).join(',');
+  }
+
+  console.log('[send-invoice] özet →', {
+    tip: payload.invoiceType, vkn: payload.taxOrIdentityNumber,
+    matrah, totalVAT, totalWH, stopaj, payable,
+  });
+
+  // ── GİB işlemi ──────────────────────────────────────────────────────────────
+  try {
+    if (TEST_MODE === 'true') {
+      await EInvoice.connect({ anonymous: true });
+      console.log('[send-invoice] TEST modu — anonim bağlantı');
+    } else {
+      await EInvoice.connect({ username: GIB_USERNAME, password: GIB_PASSWORD });
+      console.log('[send-invoice] PROD bağlantısı kuruldu');
     }
 
-    const body = req.body;
-    safeLog('İstek geldi:', body);
+    const uuid = await EInvoice.createDraftInvoice(payload);
+    console.log('[send-invoice] UUID:', uuid);
+    await EInvoice.logout();
 
-    // ── Validasyon ────────────────────────────────────────────────────────────
-    if (!body.buyerTaxId) {
-        return res.status(400).json({ success: false, error: 'VKN/TCKN zorunludur' });
+    return res.status(200).json({
+      success: true,
+      message: 'Fatura başarıyla oluşturuldu',
+      data: {
+        invoiceUUID:  uuid,
+        taxIdUsed:    body.buyerTaxId,
+        invoiceType:  body.invoiceType,
+        totals: { matrah, kdv: totalVAT, kdvTevkifat: totalWH, stopaj, vergilerDahil: includedTaxes, odenecek: payable },
+      },
+    });
+
+  } catch (err) {
+    try { await EInvoice.logout(); } catch (_) {}
+    console.error('[send-invoice] HATA:', err);
+
+    if (err instanceof EInvoiceApiError) {
+      const messages = {
+        [EInvoiceApiErrorCode.UNKNOWN_ERROR]:              'GİB bilinmeyen hata döndürdü',
+        [EInvoiceApiErrorCode.INVALID_RESPONSE]:           'GİB geçersiz yanıt döndürdü',
+        [EInvoiceApiErrorCode.INVALID_ACCESS_TOKEN]:       'GİB erişim token\'ı geçersiz',
+        [EInvoiceApiErrorCode.BASIC_INVOICE_NOT_CREATED]:  'Fatura GİB tarafından oluşturulamadı',
+      };
+      return res.status(400).json({
+        success:     false,
+        error:       messages[err.errorCode] || err.message,
+        errorCode:   err.errorCode,
+        rawResponse: TEST_MODE === 'true' ? err.response : undefined,
+      });
     }
-    if (body.buyerTaxId === '11111111111' || body.buyerTaxId === '11111111110') {
-        return res.status(400).json({
-            success: false,
-            error: 'Test VKN/TCKN kullanılamaz. Gerçek vergi numarası giriniz.'
-        });
-    }
-    if (!body.products || body.products.length === 0) {
-        return res.status(400).json({ success: false, error: 'En az bir ürün/hizmet ekleyiniz' });
+
+    if (err instanceof EInvoiceMissingTokenError) {
+      return res.status(401).json({ success: false, error: 'GİB token eksik, kimlik bilgilerini kontrol edin' });
     }
 
-    // ── İşlem ─────────────────────────────────────────────────────────────────
-    const fatura = new Fatura();
-
-    try {
-        if (TEST_MODE === 'true') {
-            fatura.enableTestMode();
-            await fatura.setTestCredentials();
-            console.log('TEST MODU aktif - Kullanıcı:', fatura.userId);
-        } else {
-            await fatura.setCredentials(GIB_USERNAME, GIB_PASSWORD);
-        }
-
-        await fatura.login();
-        console.log('GİB girişi başarılı');
-
-        const invoiceData = buildInvoiceData(body);
-
-        console.log('Fatura oluşturuluyor...');
-
-        const apiResult = await fatura.createDraft(invoiceData);
-
-        console.log('=== API SONUÇ İŞLEME ===');
-        console.log('apiResult:', apiResult);
-        console.log('apiResult tipi:', typeof apiResult);
-
-        // Eğer apiResult undefined/null ise
-        if (!apiResult) {
-            throw new Error('GİB yanıt vermedi (null/undefined)');
-        }
-
-        // Eğer string ise
-        if (typeof apiResult === 'string') {
-            console.log('String yanıt:', apiResult.substring(0, 500));
-            if (apiResult.trim().startsWith('<')) {
-                throw new Error('GİB HTML döndürdü');
-            }
-            try {
-                apiResult = JSON.parse(apiResult);
-            } catch (e) {
-                throw new Error('JSON parse hatası: ' + e.message);
-            }
-        }
-
-        // Şimdi obje olduğunu varsayalım
-        console.log('İşlenecek obje:', apiResult);
-        console.log('Obje anahtarları:', Object.keys(apiResult));
-
-        // GİB yanıt yapısını kontrol et
-        // Muhtemelen yapılar: { data: {...} }, { uuid: "..." }, veya doğrudan {...}
-
-        let resultData = {};
-        let invoiceUUID = '';
-
-        // Farklı yapıları dene
-        if (apiResult.data) {
-            resultData = apiResult.data;
-            console.log('apiResult.data bulundu:', resultData);
-        } else {
-            resultData = apiResult;
-            console.log('apiResult doğrudan kullanıldı:', resultData);
-        }
-
-        // UUID ara - tüm olası alan adları
-        const possibleUUIDFields = ['uuid', 'faturaUuid', 'ettn', 'faturaNo', 'belgeNumarasi', 'id', 'faturaID'];
-        console.log('UUID aranıyor, alanlar:', possibleUUIDFields);
-        console.log('resultData içeriği:', JSON.stringify(resultData, null, 2));
-
-        for (const field of possibleUUIDFields) {
-            if (resultData[field]) {
-                invoiceUUID = resultData[field];
-                console.log(`UUID bulundu (${field}):`, invoiceUUID);
-                break;
-            }
-        }
-
-        if (!invoiceUUID) {
-            console.error('UUID bulunamadı! resultData:', resultData);
-        }
-
-        // Hata kontrolü
-        if (resultData.error || resultData.messages || resultData.hata) {
-            console.error('GİB Hata:', resultData);
-            throw new Error(
-                resultData.messages?.[0] ||
-                resultData.error ||
-                resultData.hata ||
-                'Fatura oluşturulamadı'
-            );
-        }
-
-        await fatura.logout();
-
-        // Eğer bulunamadıysa, gönderdiğimiz UUID'yi kullan
-        if (!invoiceUUID && invoiceData.faturaUuid) {
-            invoiceUUID = invoiceData.faturaUuid;
-        }
-
-        console.log('Bulunan sonuç:', {
-            invoiceUUID: invoiceUUID || 'Bulunamadı',
-            documentNumber: resultData.belgeNumarasi || 'Bulunamadı'
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: 'Fatura başarıyla oluşturuldu',
-            data: {
-                invoiceUUID: invoiceUUID || 'UUID alınamadı',
-                documentNumber: resultData.belgeNumarasi || '',
-                taxIdUsed: body.buyerTaxId,
-                invoiceType: body.invoiceType,
-                totals: {
-                    matrah: invoiceData.matrah,
-                    kdv: invoiceData.hesaplanankdv,
-                    kdvTevkifat: invoiceData.hesaplananV9015,
-                    stopaj: invoiceData.hesaplananV0011,
-                    vergilerDahil: invoiceData.vergilerDahilToplamTutar,
-                    odenecek: invoiceData.odenecekTutar
-                },
-                rawResult: TEST_MODE === 'true' ? resultData : undefined
-            }
-        });
-
-    } catch (error) {
-        try { await fatura.logout(); } catch (_) { /* ignore */ }
-
-        console.error('HATA:', error.message);
-        console.error('Hata stack:', error.stack);
-
-        let errorMessage = error.message || 'Bilinmeyen hata';
-        let errorCode = null;
-
-        if (error.response?.data) {
-            const gibError = error.response.data;
-            errorMessage = gibError.error || gibError.message || errorMessage;
-            errorCode = gibError.errorCode;
-            console.error('GİB Hatası:', gibError);
-        }
-
-        return res.status(500).json({
-            success: false,
-            error: 'Fatura oluşturma hatası',
-            message: errorMessage,
-            errorCode,
-            stack: TEST_MODE === 'true' ? error.stack : undefined
-        });
+    if (err instanceof EInvoiceMissingCredentialsError) {
+      return res.status(401).json({ success: false, error: 'GİB kimlik bilgileri eksik/hatalı' });
     }
+
+    return res.status(500).json({
+      success:  false,
+      error:    'Beklenmeyen hata',
+      message:  err.message,
+      stack:    TEST_MODE === 'true' ? err.stack : undefined,
+    });
+  }
 };

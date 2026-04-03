@@ -247,18 +247,37 @@ class Fatura {
     };
   }
 
-  async createDraft(faturaBilgileri) {
-    return await axios.post(
-      `${this.urls[this.mode]}/dispatch`,
-      {
-        token: this.token,
-        cmd: "EARSIV_PORTAL_FATURA_OLUSTUR",
-        pageName: "RG_BASITFATURA",
-        jp: JSON.stringify(faturaBilgileri || {}),
-      },
-      this.getHeaders(),
-    );
-  }
+    async createDraft(faturaBilgileri) {
+        console.log('GÖNDERİLEN FATURA:', JSON.stringify(faturaBilgileri, null, 2));
+
+        const response = await axios.post(
+            `${this.urls[this.mode]}/dispatch`,
+            {
+                token: this.token,
+                cmd: "EARSIV_PORTAL_FATURA_OLUSTUR",
+                pageName: "RG_BASITFATURA",
+                jp: JSON.stringify(faturaBilgileri || {}),
+            },
+            this.getHeaders(),
+        );
+
+        console.log('GİB YANIT - Ham:', response.data);
+        console.log('GİB YANIT - Tip:', typeof response.data);
+
+        // Eğer string ise parse et
+        if (typeof response.data === 'string') {
+            try {
+                const parsed = JSON.parse(response.data);
+                console.log('Parse edilmiş:', parsed);
+                return parsed;
+            } catch (e) {
+                console.log('Parse hatası:', e.message);
+                return { error: response.data };
+            }
+        }
+
+        return response.data;
+    }
 
   getHeaders() {
     return {

@@ -344,10 +344,40 @@ module.exports = async function handler(req, res) {
         console.log('Fatura oluşturuluyor...');
         const result = await fatura.createDraft(invoiceData);
 
-        // ✅ Döngüsel yapıyı loglama - sadece data kısmını al
-        console.log('createDraft yanıt tipi:', typeof result);
-        console.log('createDraft data tipi:', typeof result?.data);
+        console.log('createDraft sonuç:', result);
+        console.log('===================');
+        console.log('TAM YANIT:', JSON.stringify(result, null, 2));
+        console.log('===================');
 
+        // Tüm anahtarları listele
+        if (result && typeof result === 'object') {
+            console.log('Anahtarlar:', Object.keys(result));
+        }
+        // GİB yanıt yapısını kontrol et
+        let resultData = result || {};
+        let invoiceUUID = '';
+
+        // GİB başarılı yanıtı nasıl döndürüyor?
+        // Genellikle: { data: "...", error: null } veya doğrudan obje
+        if (resultData.data && typeof resultData.data === 'object') {
+            resultData = resultData.data;
+        }
+
+        // UUID ara
+        invoiceUUID = resultData.uuid ||
+            resultData.faturaUuid ||
+            resultData.ettn ||
+            resultData.faturaNo ||
+            resultData.belgeNumarasi ||
+            '';
+
+        console.log('Bulunan UUID:', invoiceUUID);
+
+        // Eğer hata varsa
+        if (resultData.error || resultData.messages) {
+            console.error('GİB Hatası:', resultData);
+            throw new Error(resultData.messages?.[0] || resultData.error || 'Fatura oluşturulamadı');
+        }
         // Güvenli şekilde data'yı logla
         if (result?.data) {
             if (typeof result.data === 'string') {

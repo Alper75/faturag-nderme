@@ -342,36 +342,43 @@ module.exports = async function handler(req, res) {
         const invoiceData = buildInvoiceData(body);
 
         console.log('Fatura oluşturuluyor...');
-        const result = await fatura.createDraft(invoiceData);
+        try {
+            const result = await fatura.createDraft(invoiceData);
 
-        console.log('createDraft sonuç:', result);
-        console.log('===================');
-        console.log('TAM YANIT:', JSON.stringify(result, null, 2));
-        console.log('===================');
+            console.log('createDraft sonuç tipi:', typeof result);
+            console.log('createDraft sonuç:', result);
 
-        // Tüm anahtarları listele
-        if (result && typeof result === 'object') {
-            console.log('Anahtarlar:', Object.keys(result));
+            // Eğer result undefined veya null ise
+            if (!result) {
+                throw new Error('GİB yanıt vermedi');
+            }
+
+            // Eğer string ise (HTML hata sayfası olabilir)
+            if (typeof result === 'string') {
+                if (result.trim().startsWith('<')) {
+                    throw new Error('GİB HTML hata sayfası döndürdü');
+                }
+                // JSON string olabilir, dene
+                try {
+                    result = JSON.parse(result);
+                } catch (e) {
+                    throw new Error('GİB geçersiz yanıt döndürdü: ' + result.substring(0, 100));
+                }
+            }
+
+            // Şimdi result bir obje olmalı
+            let resultData = result.data || result;
+            let invoiceUUID = resultData?.uuid ||
+                resultData?.faturaUuid ||
+                resultData?.ettn ||
+                resultData?.belgeNumarasi ||
+                '';
+
+            console.log('Bulunan UUID:', invoiceUUID);
+
+        } catch (error) {
+            // ... hata işleme
         }
-        // GİB yanıt yapısını kontrol et
-        let resultData = result || {};
-        let invoiceUUID = '';
-
-        // GİB başarılı yanıtı nasıl döndürüyor?
-        // Genellikle: { data: "...", error: null } veya doğrudan obje
-        if (resultData.data && typeof resultData.data === 'object') {
-            resultData = resultData.data;
-        }
-
-        // UUID ara
-        invoiceUUID = resultData.uuid ||
-            resultData.faturaUuid ||
-            resultData.ettn ||
-            resultData.faturaNo ||
-            resultData.belgeNumarasi ||
-            '';
-
-        console.log('Bulunan UUID:', invoiceUUID);
 
         // Eğer hata varsa
         if (resultData.error || resultData.messages) {

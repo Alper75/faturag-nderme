@@ -248,35 +248,39 @@ class Fatura {
   }
 
     async createDraft(faturaBilgileri) {
-        console.log('GÖNDERİLEN FATURA:', JSON.stringify(faturaBilgileri, null, 2));
+        try {
+            const response = await axios.post(
+                `${this.urls[this.mode]}/dispatch`,
+                {
+                    token: this.token,
+                    cmd: "EARSIV_PORTAL_FATURA_OLUSTUR",
+                    pageName: "RG_BASITFATURA",
+                    jp: JSON.stringify(faturaBilgileri || {}),
+                },
+                this.getHeaders(),
+            );
 
-        const response = await axios.post(
-            `${this.urls[this.mode]}/dispatch`,
-            {
-                token: this.token,
-                cmd: "EARSIV_PORTAL_FATURA_OLUSTUR",
-                pageName: "RG_BASITFATURA",
-                jp: JSON.stringify(faturaBilgileri || {}),
-            },
-            this.getHeaders(),
-        );
+            // Yanıtı güvenli şekilde işle
+            let data = response.data;
 
-        console.log('GİB YANIT - Ham:', response.data);
-        console.log('GİB YANIT - Tip:', typeof response.data);
-
-        // Eğer string ise parse et
-        if (typeof response.data === 'string') {
-            try {
-                const parsed = JSON.parse(response.data);
-                console.log('Parse edilmiş:', parsed);
-                return parsed;
-            } catch (e) {
-                console.log('Parse hatası:', e.message);
-                return { error: response.data };
+            // Eğer string ise ve JSON gibi görünüyorsa parse et
+            if (typeof data === 'string') {
+                try {
+                    data = JSON.parse(data);
+                } catch (e) {
+                    // JSON değilse string olarak bırak
+                    console.log('Yanıt string (JSON değil):', data.substring(0, 100));
+                }
             }
-        }
 
-        return response.data;
+            return data;
+        } catch (error) {
+            console.error('createDraft hatası:', error.message);
+            if (error.response) {
+                console.error('Yanıt verisi:', error.response.data);
+            }
+            throw error;
+        }
     }
 
   getHeaders() {

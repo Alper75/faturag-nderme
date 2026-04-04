@@ -496,7 +496,7 @@ document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
   resultBox.innerHTML  = '⏳ GİB\'e bağlanılıyor, fatura oluşturuluyor...';
 
   try {
-    const resp = await fetch('/api/send-invoice', {
+    const resp = await fetch('/api/send-invoice-custom', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

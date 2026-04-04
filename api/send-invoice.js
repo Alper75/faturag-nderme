@@ -1,26 +1,5 @@
 /**
  * api/send-invoice.js
- * bilaleren/e-fatura (npm: e-fatura@^2.0.1)
- *
- * GİB'e gönderilen alanlar (test ile doğrulandı):
- *
- * Fatura geneli (…other spread):
- *   hesaplananV9015         → KDV tevkifat tutarı
- *   hesaplananV0011         → KV/GV stopaj tutarı
- *   tevkifataTabiIslemTutar → Tevkifata tabi net tutar
- *   tevkifataTabiIslemKdv   → Tevkifata tabi KDV
- *   vergiTable              → [{ vergiKodu:'V0011', vergiTutari:3000 }]
- *
- * Ürün bazlı (…other spread — PHP örneğiyle de uyumlu):
- *   tevkifatKodu    → integer (625)
- *   tevkifatOrani   → integer (30)
- *   tevkifatTutari  → number  (1200)
- *   v0011Orani      → number  (15)   ← stopaj oranı
- *   v0011Tutari     → number  (3000) ← stopaj tutarı
- *   vergi           → { v0011Orani:15, v0011Tutari:3000 }  ← eski format uyumluluğu
- *
- * vergilerToplami = SADECE KDV (stopaj dahil değil!)
- * paymentPrice    = vergilerDahil − KDV tevkifatı − stopaj
  */
 
 const {
@@ -89,12 +68,8 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
 
   // ── Stopaj listesi (fatura geneli) ────────────────────────────────────────
-  // body.taxes = [{ type: 'V0011', rate: 15, name: 'KV. STOPAJI' }]
   const stopajList = (body.taxes || []).filter(t =>
-    t.type === 'V0011' || t.type === 'V0003'
-  );
-  const stopajToplam = r(
-    stopajList.reduce((s, t) => s, 0) // hesaplama aşağıda matrah bilinince yapılacak
+    t.type === 'V0011' || t.type === 'V0003' || t.type === '0011' || t.type === '0003'
   );
 
   // ── Ürün satırı hesaplamaları ─────────────────────────────────────────────
@@ -129,13 +104,11 @@ module.exports = async function handler(req, res) {
 
     // ── KDV Tevkifatı (ürün bazlı) ─────────────────────────────────────────
     if (whCode && whRate > 0) {
-      product.tevkifatKodu   = whCode;
-      product.tevkifatOrani  = whRate;
-      product.tevkifatTutari = whAmt;
+      product.tevkifatKodu    = whCode;
+      product.tevkifatOrani   = whRate;
+      product.tevkifatTutari  = whAmt;
+      product.withholdingCode = whCode; // E-Fatura paketi garantisi için
     }
-
-    // ── Stopaj (ürün bazlı — her satıra eşit dağıtılacak, aşağıda güncellenir)
-    // stopaj tutarı matrah toplamı bilinmeden hesaplanamaz, sonradan eklenecek
 
     return { product, net, vat, whAmt, whCode };
   });
@@ -149,44 +122,77 @@ module.exports = async function handler(req, res) {
   const whBase      = r(lines.filter(l => l.whCode > 0).reduce((s, l) => s + l.net, 0));
   const whVatTotal  = r(lines.filter(l => l.whCode > 0).reduce((s, l) => s + l.vat, 0));
 
-  // Stopaj tutarını şimdi hesapla (matrah hazır)
+  // ── Stopaj Ayrıştırma ve Hesaplama (GİB V0011 KV ve V0003 GV Formatı) ─────
   let stopajTutar = 0;
+  let v0011Tutar  = 0;
+  let v0003Tutar  = 0;
+  let hasV0011    = false;
+  let hasV0003    = false;
   const vergiTable = [];
+
   stopajList.forEach((t) => {
+    const isKV = t.type.includes('0011');
+    const isGV = t.type.includes('0003');
     const tutar = r(matrah * (parseFloat(t.rate) / 100));
+
     stopajTutar = r(stopajTutar + tutar);
-    vergiTable.push({ vergiKodu: t.type, vergiTutari: tutar });
+
+    if (isKV) {
+      hasV0011 = true;
+      v0011Tutar = r(v0011Tutar + tutar);
+      vergiTable.push({ vergiKodu: '0011', vergiTutari: tutar });
+    }
+    if (isGV) {
+      hasV0003 = true;
+      v0003Tutar = r(v0003Tutar + tutar);
+      vergiTable.push({ vergiKodu: '0003', vergiTutari: tutar });
+    }
   });
 
-  // ── Stopajı ürün satırlarına ekle ─────────────────────────────────────────
+  // ── Stopajı ürün satırlarına GİB dilinde ekleme ──────────────────────────
   if (stopajTutar > 0 && lines.length > 0) {
-    // Stopaj tüm ürünlere eşit dağıtılır (son satıra yuvarlama farkı)
-    let kalanStopaj = stopajTutar;
-    lines.forEach((l, i) => {
-      const urunStopaj = i < lines.length - 1
-        ? r((l.net / matrah) * stopajTutar)
-        : kalanStopaj;
-      kalanStopaj = r(kalanStopaj - urunStopaj);
+    let kalanV0011 = v0011Tutar;
+    let kalanV0003 = v0003Tutar;
 
-      const stopajOrani = stopajList[0]?.rate || 0;
-      // Ürün bazlı stopaj alanları (GİB iki formatı da kabul eder)
-      l.product.v0011Orani  = parseFloat(stopajOrani);
-      l.product.v0011Tutari = urunStopaj;
-      l.product.vergi       = {
-        v0011Orani:  parseFloat(stopajOrani),
-        v0011Tutari: urunStopaj,
-      };
+    lines.forEach((l, i) => {
+      const isLast = i === lines.length - 1;
+
+      // Kurumlar Vergisi Stopajı Satır Dağılımı
+      if (hasV0011) {
+        const sOran = stopajList.find(t => t.type.includes('0011'))?.rate || 0;
+        const urunV0011 = isLast ? kalanV0011 : r((l.net / matrah) * v0011Tutar);
+        kalanV0011 = r(kalanV0011 - urunV0011);
+
+        l.product.kvStopajOrani  = parseFloat(sOran);
+        l.product.kvStopajTutari = urunV0011;
+      }
+
+      // Gelir Vergisi Stopajı Satır Dağılımı
+      if (hasV0003) {
+        const sOran = stopajList.find(t => t.type.includes('0003'))?.rate || 0;
+        const urunV0003 = isLast ? kalanV0003 : r((l.net / matrah) * v0003Tutar);
+        kalanV0003 = r(kalanV0003 - urunV0003);
+
+        l.product.gvStopajOrani  = parseFloat(sOran);
+        l.product.gvStopajTutari = urunV0003;
+      }
     });
   }
 
   const includedTaxes = r(matrah + totalVAT);
   const payable       = r(includedTaxes - totalWH - stopajTutar);
 
+  // Fatura Tevkifatlı ise tipi kesinlikle TEVKIFAT olmalıdır
+  let finalInvoiceType = InvoiceType[body.invoiceType] || InvoiceType.SATIS;
+  if (totalWH > 0) {
+    finalInvoiceType = InvoiceType.TEVKIFAT;
+  }
+
   // ── Payload ───────────────────────────────────────────────────────────────
   const payload = {
     date:        toGibDate(body.date),
     time:        body.time,
-    invoiceType: InvoiceType[body.invoiceType] || InvoiceType.SATIS,
+    invoiceType: finalInvoiceType,
     currency:
       body.currency === 'USD' ? EInvoiceCurrencyType.DOLAR
     : body.currency === 'EUR' ? EInvoiceCurrencyType.EURO
@@ -205,8 +211,8 @@ module.exports = async function handler(req, res) {
     base:                    matrah,
     productsTotalPrice:      grossTotal,
     totalDiscountOrIncrement: totalDisc,
-    calculatedVAT:           totalVAT,   // SADECE KDV
-    totalTaxes:              totalVAT,   // SADECE KDV
+    calculatedVAT:           totalVAT,   // GİB'de bu sadece KDV'dir
+    totalTaxes:              totalVAT,   // GİB'de bu sadece KDV'dir
     includedTaxesTotalPrice: includedTaxes,
     paymentPrice:            payable,
 
@@ -217,25 +223,24 @@ module.exports = async function handler(req, res) {
     waybillDate:   toGibDate(body.waybillDate),
   };
 
-  // ── KDV Tevkifatı (fatura geneli) ─────────────────────────────────────────
+  // ── KDV Tevkifatı (Fatura Geneli) ─────────────────────────────────────────
   if (totalWH > 0) {
     payload.hesaplananV9015         = totalWH;
     payload.tevkifataTabiIslemTutar = whBase;
     payload.tevkifataTabiIslemKdv   = whVatTotal;
   }
 
-  // ── Stopaj (fatura geneli) ────────────────────────────────────────────────
-  if (stopajTutar > 0) {
-    payload.hesaplananV0011 = stopajTutar;
-    payload.vergiTable      = vergiTable;
-  }
+  // ── Stopaj (Fatura Geneli) ────────────────────────────────────────────────
+  if (hasV0011) payload.hesaplananV0011 = v0011Tutar;
+  if (hasV0003) payload.hesaplananV0003 = v0003Tutar;
+  if (vergiTable.length > 0) payload.vergiTable = vergiTable;
 
-  console.log('[send-invoice]', JSON.stringify({
+  console.log('[send-invoice] Payload özeti:', JSON.stringify({
     tip: payload.invoiceType, vkn: payload.taxOrIdentityNumber,
     matrah, kdv: totalVAT, tevkifat: totalWH, stopaj: stopajTutar, payable,
   }));
 
-  // ── GİB ───────────────────────────────────────────────────────────────────
+  // ── GİB İstek ──────────────────────────────────────────────────────────────
   try {
     if (TEST_MODE === 'true') {
       await EInvoice.connect({ anonymous: true });
@@ -244,7 +249,7 @@ module.exports = async function handler(req, res) {
     }
 
     const uuid = await EInvoice.createDraftInvoice(payload);
-    console.log('[send-invoice] UUID:', uuid);
+    console.log('[send-invoice] Başarılı! UUID:', uuid);
     await EInvoice.logout();
 
     return res.status(200).json({
@@ -253,7 +258,7 @@ module.exports = async function handler(req, res) {
       data: {
         invoiceUUID: uuid,
         taxIdUsed:   body.buyerTaxId,
-        invoiceType: body.invoiceType,
+        invoiceType: finalInvoiceType,
         totals: { matrah, kdv: totalVAT, kdvTevkifat: totalWH, stopaj: stopajTutar, vergilerDahil: includedTaxes, odenecek: payable },
       },
     });
@@ -267,7 +272,7 @@ module.exports = async function handler(req, res) {
         [EInvoiceApiErrorCode.UNKNOWN_ERROR]:             'GİB bilinmeyen hata döndürdü',
         [EInvoiceApiErrorCode.INVALID_RESPONSE]:          'GİB geçersiz yanıt döndürdü',
         [EInvoiceApiErrorCode.INVALID_ACCESS_TOKEN]:      'GİB erişim token\'ı geçersiz',
-        [EInvoiceApiErrorCode.BASIC_INVOICE_NOT_CREATED]: 'Fatura GİB tarafından oluşturulamadı',
+        [EInvoiceApiErrorCode.BASIC_INVOICE_NOT_CREATED]: 'Fatura GİB tarafından oluşturulamadı (Bilgilerde eksiklik veya yanlışlık olabilir)',
       };
       return res.status(400).json({
         success: false,
@@ -276,15 +281,10 @@ module.exports = async function handler(req, res) {
         rawResponse: TEST_MODE === 'true' ? err.response : undefined,
       });
     }
-    if (err instanceof EInvoiceMissingTokenError)
-      return res.status(401).json({ success: false, error: 'GİB token eksik' });
-    if (err instanceof EInvoiceMissingCredentialsError)
-      return res.status(401).json({ success: false, error: 'GİB kimlik bilgileri hatalı' });
-
+    
     return res.status(500).json({
-      success: false, error: 'Beklenmeyen hata',
-      message: err.message,
-      stack: TEST_MODE === 'true' ? err.stack : undefined,
+      success: false, error: 'Bağlantı veya Kod Hatası',
+      message: err.message
     });
   }
 };

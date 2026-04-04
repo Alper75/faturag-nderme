@@ -1,12 +1,8 @@
 /**
  * api/send-invoice.js
- * 
- * KESİN ÇÖZÜM: e-fatura paketi tamamen devreden çıkarıldı! 
- * Node.js'in yerleşik 'fetch' özelliği ile doğrudan GİB API'sine bağlanılıp, 
- * Cookie (JSESSIONID) yönetimi manuel yapılıyor ve saf JSON iletiliyor.
  */
 
-const crypto = require('crypto'); // Node.js yerleşik modülü (Şifreleme ve UUID için)
+const crypto = require('crypto');
 
 // KDV Tevkifat kodları → tevkifat oranı (KDV'nin yüzdesi)
 const WH_RATES = {
@@ -60,7 +56,7 @@ module.exports = async function handler(req, res) {
   if (!body.products?.length) return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
 
   // ── Stopaj Listesi ────────────────────────────────────────────────────────
-  const stopajList = (body.taxes || []).filter(t => t.type === 'V0011' || t.type === 'V0003');
+  const stopajList = (body.taxes || []).filter(t => t.type === 'V0011' || t.type === 'V0003' || t.type === '0011' || t.type === '0003');
   let totalV0011 = 0;
   let totalV0003 = 0;
 
@@ -105,11 +101,11 @@ module.exports = async function handler(req, res) {
     stopajList.forEach(t => {
       const sRate = parseFloat(t.rate) || 0;
       const sAmt = r(net * (sRate / 100));
-      if (t.type === 'V0011') {
+      if (t.type.includes('0011')) {
           row.v0011Orani = sRate;
           row.v0011Tutari = sAmt;
           totalV0011 += sAmt;
-      } else if (t.type === 'V0003') {
+      } else if (t.type.includes('0003')) {
           row.v0003Orani = sRate;
           row.v0003Tutari = sAmt;
           totalV0003 += sAmt;
@@ -140,7 +136,7 @@ module.exports = async function handler(req, res) {
      finalInvoiceType = "TEVKIFAT";
   }
 
-  const invoiceUUID = crypto.randomUUID(); // Node.js dahili güvenli UUID oluşturucusu
+  const invoiceUUID = crypto.randomUUID();
 
   // ── SAF GİB JSON PAYLOAD ──────────────────────────────────────────────────
   const jp = {
@@ -200,15 +196,22 @@ module.exports = async function handler(req, res) {
     tip: jp.faturaTipi, vkn: jp.vknTckn, matrah, kdv: totalVAT, tevkifat: totalWH, v0011: totalV0011, v0003: totalV0003, payable,
   }));
 
-  // ── GİB'E İLETİM (Harici Paket Kullanılmadan %100 Node.js Native) ───────────
+  // ── GİB'E İLETİM ──────────────────────────────────────────────────────────
   try {
     const baseUrl = TEST_MODE === 'true' 
         ? 'https://earsivportaltest.efatura.gov.tr/earsiv-services' 
         : 'https://earsivportal.efatura.gov.tr/earsiv-services';
 
+    const reqHeaders = { 
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01'
+    };
+
     // 1. GİB SİSTEMİNE GİRİŞ (LOGIN)
     const loginParams = new URLSearchParams();
-    loginParams.append('assoscmd', TEST_MODE === 'true' ? 'login' : 'anologin');
+    // DÜZELTİLEN KISIM: Testte anologin, Canlıda login
+    loginParams.append('assoscmd', TEST_MODE === 'true' ? 'anologin' : 'login');
     loginParams.append('userid', GIB_USERNAME);
     loginParams.append('sifre', GIB_PASSWORD);
     loginParams.append('sifre2', GIB_PASSWORD);
@@ -216,7 +219,7 @@ module.exports = async function handler(req, res) {
 
     const loginRes = await fetch(`${baseUrl}/assos-login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: reqHeaders,
         body: loginParams.toString()
     });
 
@@ -227,7 +230,7 @@ module.exports = async function handler(req, res) {
         throw new Error(loginData.messages?.[0]?.text || "GİB Sistemine giriş yapılamadı. Kullanıcı adı veya şifrenizi kontrol edin.");
     }
 
-    // Giriş sırasında GİB'in verdiği Oturum Çerezini (JSESSIONID) Yakalıyoruz
+    // Oturum Çerezini (JSESSIONID) Yakalıyoruz
     const setCookieHeader = loginRes.headers.get('set-cookie');
     let cookieString = '';
     if (setCookieHeader) {
@@ -242,12 +245,11 @@ module.exports = async function handler(req, res) {
     dispatchParams.append('token', token);
     dispatchParams.append('jp', JSON.stringify(jp));
 
-    const dispatchHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    if (cookieString) dispatchHeaders['Cookie'] = cookieString; // Yetki hatasını çözen altın vuruş!
+    if (cookieString) reqHeaders['Cookie'] = cookieString; 
 
     const dispatchRes = await fetch(`${baseUrl}/dispatch`, {
         method: 'POST',
-        headers: dispatchHeaders,
+        headers: reqHeaders,
         body: dispatchParams.toString()
     });
 
@@ -259,7 +261,7 @@ module.exports = async function handler(req, res) {
     logoutParams.append('token', token);
     fetch(`${baseUrl}/assos-login`, { 
         method: 'POST', 
-        headers: dispatchHeaders, 
+        headers: reqHeaders, 
         body: logoutParams.toString() 
     }).catch(() => null);
 

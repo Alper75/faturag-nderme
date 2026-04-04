@@ -1,8 +1,5 @@
 /**
  * api/send-invoice.js
- * 
- * DÜZELTME: GİB Portal'in iç API'si vergi kodlarında "V" harfini (Örn: V0011) 
- * ve satırlarda v0011Orani / tevkifatKodu isimlendirmelerini zorunlu tutar.
  */
 
 const {
@@ -70,7 +67,7 @@ module.exports = async function handler(req, res) {
   if (!body.products?.length)
     return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
 
-  // ── Stopaj Listesi (V0011: Kurumlar, V0003: Gelir) ────────────────────────
+  // ── Stopaj Listesi ────────────────────────────────────────────────────────
   const stopajList = (body.taxes || []).filter(t => t.type === 'V0011' || t.type === 'V0003');
 
   let totalV0011 = 0;
@@ -84,10 +81,10 @@ module.exports = async function handler(req, res) {
     const dr     = parseFloat(p.discountRate) || 0;
     const whCode = p.withholdingCode ? parseInt(p.withholdingCode) : 0;
 
-    const gross  = r(qty * up);
-    const disc   = r(gross * (dr / 100));
-    const net    = r(gross - disc);
-    const vat    = r(net * (vr / 100));
+    const gross  = r(qty * up);           // GİB 'Fiyat' (Miktar * Birim Fiyat)
+    const disc   = r(gross * (dr / 100)); // İskonto Tutarı
+    const net    = r(gross - disc);       // GİB 'Mal Hizmet Tutarı' (Net Tutar - DÜZELTİLEN YER)
+    const vat    = r(net * (vr / 100));   // KDV Tutarı
     const whRate = WH_RATES[whCode] || 0;
     const whAmt  = whCode ? r(vat * (whRate / 100)) : 0;
 
@@ -96,24 +93,26 @@ module.exports = async function handler(req, res) {
       quantity:                  qty,
       unitType:                  UNIT_MAP[p.unitType] || EInvoiceUnitType.ADET,
       unitPrice:                 up,
-      price:                     net,
+      price:                     gross, // <-- Matematik kuralı (Fiyat alanı)
       discountOrIncrement:       'İskonto',
       discountOrIncrementRate:   dr,
       discountOrIncrementAmount: disc,
       discountOrIncrementReason: '',
       vatRate:                   vr,
       vatAmount:                 vat,
-      totalAmount:               r(net + vat),
+      totalAmount:               net,   // <-- Matematik kuralı (Net Tutar olmalı, KDV dahil DEĞİL)
+      vergi:                     {}     // Eski paket uyumluluğu için
     };
 
-    // 1. KDV Tevkifatı GİB Formatı (ürün bazlı)
+    // 1. KDV Tevkifatı (ürün bazlı)
     if (whCode && whRate > 0) {
-      product.tevkifatKodu   = whCode;
-      product.tevkifatOrani  = whRate;
-      product.tevkifatTutari = whAmt;
+      product.tevkifatKodu    = whCode;
+      product.tevkifatOrani   = whRate;
+      product.tevkifatTutari  = whAmt;
+      product.withholdingCode = whCode;
     }
 
-    // 2. Stopaj GİB Formatı (ürün bazlı)
+    // 2. Stopaj (ürün bazlı)
     stopajList.forEach(t => {
       const sRate = parseFloat(t.rate) || 0;
       const sAmt = r(net * (sRate / 100));
@@ -121,14 +120,12 @@ module.exports = async function handler(req, res) {
       if (t.type === 'V0011') {
           product.v0011Orani = sRate;
           product.v0011Tutari = sAmt;
-          product.vergi = product.vergi || {};
           product.vergi.v0011Orani = sRate;
           product.vergi.v0011Tutari = sAmt;
           totalV0011 += sAmt;
       } else if (t.type === 'V0003') {
           product.v0003Orani = sRate;
           product.v0003Tutari = sAmt;
-          product.vergi = product.vergi || {};
           product.vergi.v0003Orani = sRate;
           product.vergi.v0003Tutari = sAmt;
           totalV0003 += sAmt;
@@ -138,7 +135,6 @@ module.exports = async function handler(req, res) {
     return { product, net, vat, whAmt, whCode };
   });
 
-  // Yuvarlamalar
   totalV0011 = r(totalV0011);
   totalV0003 = r(totalV0003);
 
@@ -147,7 +143,7 @@ module.exports = async function handler(req, res) {
   const totalDisc   = r(lines.reduce((s, l) => s + l.product.discountOrIncrementAmount, 0));
   const totalVAT    = r(lines.reduce((s, l) => s + l.vat, 0));
   const totalWH     = r(lines.reduce((s, l) => s + l.whAmt, 0));
-  const grossTotal  = r(lines.reduce((s, l) => s + r(l.product.unitPrice * (l.product.quantity || 1)), 0));
+  const grossTotal  = r(lines.reduce((s, l) => s + l.product.price, 0));
   const whBase      = r(lines.filter(l => l.whCode > 0).reduce((s, l) => s + l.net, 0));
   const whVatTotal  = r(lines.filter(l => l.whCode > 0).reduce((s, l) => s + l.vat, 0));
 
@@ -160,7 +156,7 @@ module.exports = async function handler(req, res) {
      invoiceType = InvoiceType.TEVKIFAT;
   }
 
-  // ── JSON Payload (GİB Portal) ─────────────────────────────────────────────
+  // ── JSON Payload ──────────────────────────────────────────────────────────
   const payload = {
     date:        toGibDate(body.date),
     time:        body.time,
@@ -195,14 +191,14 @@ module.exports = async function handler(req, res) {
     waybillDate:   toGibDate(body.waybillDate),
   };
 
-  // 3. KDV Tevkifatı Fatura Geneli Alt Toplamları
+  // 3. KDV Tevkifatı (Fatura Geneli)
   if (totalWH > 0) {
     payload.hesaplananV9015         = totalWH;
     payload.tevkifataTabiIslemTutar = whBase;
     payload.tevkifataTabiIslemKdv   = whVatTotal;
   }
 
-  // 4. Stopaj Fatura Geneli Alt Toplamları ve Vergi Tablosu
+  // 4. Stopaj (Fatura Geneli)
   const vergiTable = [];
   if (totalV0011 > 0) {
     payload.hesaplananV0011 = totalV0011;

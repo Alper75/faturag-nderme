@@ -1,17 +1,14 @@
 /**
  * api/send-invoice.js
+ * 
+ * ÇÖZÜM: e-fatura paketi JSON'daki özel vergi alanlarını (tevkifatKodu, v0011Orani) 
+ * sildiği için, paketin sadece Token (Giriş) özelliğini kullanıp faturayı doğrudan 
+ * GİB API'sine (Axios ile) saf JSON formatında iletiyoruz. PHP kütüphanesi ile aynı mantık!
  */
 
-const {
-  default: EInvoice,
-  InvoiceType,
-  EInvoiceUnitType,
-  EInvoiceCurrencyType,
-  EInvoiceApiError,
-  EInvoiceApiErrorCode,
-  EInvoiceMissingTokenError,
-  EInvoiceMissingCredentialsError,
-} = require('e-fatura');
+const { default: EInvoice } = require('e-fatura');
+const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 
 // KDV Tevkifat kodları → tevkifat oranı (KDV'nin yüzdesi)
 const WH_RATES = {
@@ -23,18 +20,19 @@ const WH_RATES = {
   626:20, 627:20, 801:70, 802:50, 803:70,
 };
 
+// GİB Doğrudan Birim Kodları
 const UNIT_MAP = {
-  C62: EInvoiceUnitType.ADET,  ADET: EInvoiceUnitType.ADET,
-  HUR: EInvoiceUnitType.SAAT,  SAAT: EInvoiceUnitType.SAAT,
-  DAY: EInvoiceUnitType.GUN,   GUN:  EInvoiceUnitType.GUN,
-  MON: EInvoiceUnitType.AY,    AY:   EInvoiceUnitType.AY,
-  ANN: EInvoiceUnitType.YIL,   YIL:  EInvoiceUnitType.YIL,
-  KGM: EInvoiceUnitType.KG,    KG:   EInvoiceUnitType.KG,
-  LTR: EInvoiceUnitType.LT,    LT:   EInvoiceUnitType.LT,
-  TNE: EInvoiceUnitType.TON,   TON:  EInvoiceUnitType.TON,
-  MTR: EInvoiceUnitType.MTR,   MTK:  EInvoiceUnitType.MTK,
-  MTQ: EInvoiceUnitType.MTQ,   PA:   EInvoiceUnitType.PAKET,
-  BX:  EInvoiceUnitType.KUTU,
+  C62: 'C62',  ADET: 'C62',
+  HUR: 'HUR',  SAAT: 'HUR',
+  DAY: 'DAY',   GUN: 'DAY',
+  MON: 'MON',    AY: 'MON',
+  ANN: 'ANN',   YIL: 'ANN',
+  KGM: 'KGM',    KG: 'KGM',
+  LTR: 'LTR',    LT: 'LTR',
+  TNE: 'TNE',   TON: 'TNE',
+  MTR: 'MTR',   MTK: 'MTK',
+  MTQ: 'MTQ',    PA: 'PA',
+   BX: 'BX',   KUTU: 'BX'
 };
 
 function r(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
@@ -60,211 +58,191 @@ module.exports = async function handler(req, res) {
 
   const body = req.body;
 
-  if (!body.buyerTaxId)
-    return res.status(400).json({ success: false, error: 'buyerTaxId zorunludur' });
-  if (['11111111111', '11111111110'].includes(body.buyerTaxId))
-    return res.status(400).json({ success: false, error: 'Test vergi numarası kullanılamaz' });
-  if (!body.products?.length)
-    return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
+  if (!body.buyerTaxId) return res.status(400).json({ success: false, error: 'buyerTaxId zorunludur' });
+  if (['11111111111', '11111111110'].includes(body.buyerTaxId)) return res.status(400).json({ success: false, error: 'Test vergi numarası kullanılamaz' });
+  if (!body.products?.length) return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
 
   // ── Stopaj Listesi ────────────────────────────────────────────────────────
   const stopajList = (body.taxes || []).filter(t => t.type === 'V0011' || t.type === 'V0003');
-
   let totalV0011 = 0;
   let totalV0003 = 0;
 
-  // ── Ürün Satırı Hesaplamaları ve GİB Etiketleri ───────────────────────────
-  const lines = body.products.map((p) => {
+  // ── Ürün Satırı Hesaplamaları (Saf GİB JSON Formatı İçin) ─────────────────
+  const malHizmetTable = body.products.map((p) => {
     const qty    = parseFloat(p.quantity)     || 0;
     const up     = parseFloat(p.unitPrice)    || 0;
     const vr     = parseFloat(p.vatRate)      || 0;
     const dr     = parseFloat(p.discountRate) || 0;
     const whCode = p.withholdingCode ? parseInt(p.withholdingCode) : 0;
 
-    const gross  = r(qty * up);           // GİB 'Fiyat' (Miktar * Birim Fiyat)
+    const gross  = r(qty * up);           // Fiyat
     const disc   = r(gross * (dr / 100)); // İskonto Tutarı
-    const net    = r(gross - disc);       // GİB 'Mal Hizmet Tutarı' (Net Tutar - DÜZELTİLEN YER)
+    const net    = r(gross - disc);       // Mal Hizmet Tutarı (Net Tutar)
     const vat    = r(net * (vr / 100));   // KDV Tutarı
     const whRate = WH_RATES[whCode] || 0;
     const whAmt  = whCode ? r(vat * (whRate / 100)) : 0;
 
-    const product = {
-      name:                      p.name,
-      quantity:                  qty,
-      unitType:                  UNIT_MAP[p.unitType] || EInvoiceUnitType.ADET,
-      unitPrice:                 up,
-      price:                     gross, // <-- Matematik kuralı (Fiyat alanı)
-      discountOrIncrement:       'İskonto',
-      discountOrIncrementRate:   dr,
-      discountOrIncrementAmount: disc,
-      discountOrIncrementReason: '',
-      vatRate:                   vr,
-      vatAmount:                 vat,
-      totalAmount:               net,   // <-- Matematik kuralı (Net Tutar olmalı, KDV dahil DEĞİL)
-      vergi:                     {}     // Eski paket uyumluluğu için
+    const row = {
+      malHizmet: p.name,
+      miktar: qty,
+      birim: UNIT_MAP[p.unitType] || 'C62',
+      birimFiyat: up,
+      fiyat: gross,
+      iskontoOrani: dr,
+      iskontoTutari: disc,
+      iskontoNedeni: '',
+      malHizmetTutari: net,
+      kdvOrani: vr,
+      kdvTutari: vat,
+      vergininKdvTutari: "0"
     };
 
-    // 1. KDV Tevkifatı (ürün bazlı)
+    // Tevkifat (ürün bazlı)
     if (whCode && whRate > 0) {
-      product.tevkifatKodu    = whCode;
-      product.tevkifatOrani   = whRate;
-      product.tevkifatTutari  = whAmt;
-      product.withholdingCode = whCode;
+      row.tevkifatKodu   = whCode;
+      row.tevkifatOrani  = whRate;
+      row.tevkifatTutari = whAmt;
     }
 
-    // 2. Stopaj (ürün bazlı)
+    // Stopaj (ürün bazlı)
     stopajList.forEach(t => {
       const sRate = parseFloat(t.rate) || 0;
       const sAmt = r(net * (sRate / 100));
-      
       if (t.type === 'V0011') {
-          product.v0011Orani = sRate;
-          product.v0011Tutari = sAmt;
-          product.vergi.v0011Orani = sRate;
-          product.vergi.v0011Tutari = sAmt;
+          row.v0011Orani = sRate;
+          row.v0011Tutari = sAmt;
           totalV0011 += sAmt;
       } else if (t.type === 'V0003') {
-          product.v0003Orani = sRate;
-          product.v0003Tutari = sAmt;
-          product.vergi.v0003Orani = sRate;
-          product.vergi.v0003Tutari = sAmt;
+          row.v0003Orani = sRate;
+          row.v0003Tutari = sAmt;
           totalV0003 += sAmt;
       }
     });
 
-    return { product, net, vat, whAmt, whCode };
+    return { row, net, vat, whAmt, whCode };
   });
 
   totalV0011 = r(totalV0011);
   totalV0003 = r(totalV0003);
 
   // ── Genel Toplamlar ───────────────────────────────────────────────────────
-  const matrah      = r(lines.reduce((s, l) => s + l.net, 0));
-  const totalDisc   = r(lines.reduce((s, l) => s + l.product.discountOrIncrementAmount, 0));
-  const totalVAT    = r(lines.reduce((s, l) => s + l.vat, 0));
-  const totalWH     = r(lines.reduce((s, l) => s + l.whAmt, 0));
-  const grossTotal  = r(lines.reduce((s, l) => s + l.product.price, 0));
-  const whBase      = r(lines.filter(l => l.whCode > 0).reduce((s, l) => s + l.net, 0));
-  const whVatTotal  = r(lines.filter(l => l.whCode > 0).reduce((s, l) => s + l.vat, 0));
+  const matrah      = r(malHizmetTable.reduce((s, l) => s + l.net, 0));
+  const totalDisc   = r(malHizmetTable.reduce((s, l) => s + l.row.iskontoTutari, 0));
+  const totalVAT    = r(malHizmetTable.reduce((s, l) => s + l.vat, 0));
+  const totalWH     = r(malHizmetTable.reduce((s, l) => s + l.whAmt, 0));
+  const grossTotal  = r(malHizmetTable.reduce((s, l) => s + l.row.fiyat, 0));
+  const whBase      = r(malHizmetTable.filter(l => l.whCode > 0).reduce((s, l) => s + l.net, 0));
+  const whVatTotal  = r(malHizmetTable.filter(l => l.whCode > 0).reduce((s, l) => s + l.vat, 0));
 
   const includedTaxes = r(matrah + totalVAT);
   const payable       = r(includedTaxes - totalWH - totalV0011 - totalV0003);
 
   // Fatura Tipi Otomatik Ayarlama
-  let invoiceType = InvoiceType[body.invoiceType] || InvoiceType.SATIS;
-  if (totalWH > 0 && invoiceType === InvoiceType.SATIS) {
-     invoiceType = InvoiceType.TEVKIFAT;
+  let finalInvoiceType = body.invoiceType || "SATIS";
+  if (totalWH > 0 && finalInvoiceType === "SATIS") {
+     finalInvoiceType = "TEVKIFAT";
   }
 
-  // ── JSON Payload ──────────────────────────────────────────────────────────
-  const payload = {
-    date:        toGibDate(body.date),
-    time:        body.time,
-    invoiceType: invoiceType,
-    currency:
-      body.currency === 'USD' ? EInvoiceCurrencyType.DOLAR
-    : body.currency === 'EUR' ? EInvoiceCurrencyType.EURO
-    : body.currency === 'GBP' ? EInvoiceCurrencyType.STERLIN
-    : EInvoiceCurrencyType.TURK_LIRASI,
+  const invoiceUUID = uuidv4();
 
-    taxOrIdentityNumber: body.buyerTaxId,
-    buyerTitle:          body.buyerTitle     || undefined,
-    buyerFirstName:      body.buyerFirstName || undefined,
-    buyerLastName:       body.buyerLastName  || undefined,
-    taxOffice:           body.buyerTaxOffice || undefined,
-    fullAddress:         body.buyerAddress   || undefined,
-
-    products: lines.map((l) => l.product),
-
-    base:                    matrah,
-    productsTotalPrice:      grossTotal,
-    totalDiscountOrIncrement: totalDisc,
-    calculatedVAT:           totalVAT,
-    totalTaxes:              totalVAT,
-    includedTaxesTotalPrice: includedTaxes,
-    paymentPrice:            payable,
-
-    note:          body.note          || undefined,
-    orderNumber:   body.orderNumber   || undefined,
-    orderDate:     toGibDate(body.orderDate),
-    waybillNumber: body.waybillNumber || undefined,
-    waybillDate:   toGibDate(body.waybillDate),
+  // ── SAF GİB JSON PAYLOAD ──────────────────────────────────────────────────
+  const jp = {
+    faturaUuid: invoiceUUID,
+    belgeNumarasi: "",
+    faturaTarihi: toGibDate(body.date),
+    saat: body.time,
+    paraBirimi: body.currency || "TRY",
+    dovzTLkur: "0",
+    faturaTipi: finalInvoiceType,
+    vknTckn: body.buyerTaxId,
+    aliciAdi: body.buyerFirstName || "",
+    aliciSoyadi: body.buyerLastName || "",
+    vergiDairesi: body.buyerTaxOffice || "",
+    bulvarcaddesokak: body.buyerAddress || "",
+    mahalleSemtIlce: "",
+    sehir: " ",
+    ulke: body.country || "Türkiye",
+    matrah: matrah,
+    malHizmetToplamTutari: grossTotal,
+    toplamIskonto: totalDisc,
+    hesaplanankdv: totalVAT,
+    vergilerToplami: totalVAT,
+    vergilerDahilToplamTutar: includedTaxes,
+    odenecekTutar: payable,
+    not: body.note || "",
+    siparisNumarasi: body.orderNumber || "",
+    siparisTarihi: toGibDate(body.orderDate) || "",
+    irsaliyeNumarasi: body.waybillNumber || "",
+    irsaliyeTarihi: toGibDate(body.waybillDate) || "",
+    fisNo: "", fisTarihi: "", fisSaati: "", fisTipi: "", zRaporNo: "", okcSeriNo: "",
+    malHizmetTable: malHizmetTable.map(l => l.row)
   };
 
-  // 3. KDV Tevkifatı (Fatura Geneli)
+  // KDV Tevkifatı Fatura Geneli (Eğer Varsa)
   if (totalWH > 0) {
-    payload.hesaplananV9015         = totalWH;
-    payload.tevkifataTabiIslemTutar = whBase;
-    payload.tevkifataTabiIslemKdv   = whVatTotal;
+    jp.hesaplananV9015 = totalWH;
+    jp.tevkifataTabiIslemTutar = whBase;
+    jp.tevkifataTabiIslemKdv = whVatTotal;
   }
 
-  // 4. Stopaj (Fatura Geneli)
-  const vergiTable = [];
-  if (totalV0011 > 0) {
-    payload.hesaplananV0011 = totalV0011;
-    vergiTable.push({ vergiKodu: 'V0011', vergiTutari: totalV0011 });
-  }
-  if (totalV0003 > 0) {
-    payload.hesaplananV0003 = totalV0003;
-    vergiTable.push({ vergiKodu: 'V0003', vergiTutari: totalV0003 });
-  }
-  
-  if (vergiTable.length > 0) {
-    payload.vergiTable = vergiTable;
-  }
+  // Stopaj Fatura Geneli (Eğer Varsa)
+  if (totalV0011 > 0) jp.hesaplananV0011 = totalV0011;
+  if (totalV0003 > 0) jp.hesaplananV0003 = totalV0003;
 
-  console.log('[send-invoice] Payload Gönderiliyor:', JSON.stringify({
-    tip: payload.invoiceType, vkn: payload.taxOrIdentityNumber,
-    matrah, kdv: totalVAT, tevkifat: totalWH, v0011: totalV0011, v0003: totalV0003, payable,
-  }));
-
-  // ── GİB İstek ──────────────────────────────────────────────────────────────
+  // ── GİB'E İLETİM (e-fatura paketinin kısıtlamalarını by-pass ediyoruz) ───
   try {
-    if (TEST_MODE === 'true') {
-      await EInvoice.connect({ anonymous: true });
-    } else {
-      await EInvoice.connect({ username: GIB_USERNAME, password: GIB_PASSWORD });
-    }
+    // 1. Sadece güvenli Login olmak için paketi kullanıyoruz
+    await EInvoice.connect(TEST_MODE === 'true' ? { anonymous: true } : { username: GIB_USERNAME, password: GIB_PASSWORD });
+    
+    // 2. Token'i paketten çekiyoruz
+    const token = EInvoice.token || EInvoice._token || (EInvoice.client && EInvoice.client.token);
+    if (!token) throw new Error("GİB Portalından token alınamadı.");
 
-    const uuid = await EInvoice.createDraftInvoice(payload);
-    console.log('[send-invoice] UUID Başarıyla Alındı:', uuid);
+    // 3. Faturayı paket üzerinden DEĞİL, doğrudan Axios ile saf GİB API'sine yolluyoruz!
+    const baseUrl = TEST_MODE === 'true' 
+        ? 'https://earsivportaltest.efatura.gov.tr/earsiv-services/dispatch' 
+        : 'https://earsivportal.efatura.gov.tr/earsiv-services/dispatch';
+
+    const params = new URLSearchParams();
+    params.append('cmd', 'EARSIV_PORTAL_FATURA_KAYDET');
+    params.append('pageName', 'RG_TASLAKLAR');
+    params.append('token', token);
+    params.append('jp', JSON.stringify(jp));
+
+    console.log('[send-invoice] Manuel Dispatch Başlıyor...', invoiceUUID);
+
+    const response = await axios.post(baseUrl, params.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
     await EInvoice.logout();
 
-    return res.status(200).json({
-      success: true,
-      message: 'Fatura başarıyla oluşturuldu',
-      data: {
-        invoiceUUID: uuid,
-        taxIdUsed:   body.buyerTaxId,
-        invoiceType: invoiceType,
-        totals: { 
-            matrah, kdv: totalVAT, kdvTevkifat: totalWH, 
-            stopaj: r(totalV0011 + totalV0003), vergilerDahil: includedTaxes, odenecek: payable 
-        },
-      },
-    });
+    // 4. GİB Başarı Kontrolü
+    if (response.data && response.data.data === 'Fatura başarıyla oluşturuldu.') {
+        return res.status(200).json({
+          success: true,
+          message: 'Fatura başarıyla oluşturuldu',
+          data: {
+            invoiceUUID: invoiceUUID,
+            taxIdUsed:   body.buyerTaxId,
+            invoiceType: finalInvoiceType,
+            totals: { 
+                matrah, kdv: totalVAT, kdvTevkifat: totalWH, 
+                stopaj: r(totalV0011 + totalV0003), vergilerDahil: includedTaxes, odenecek: payable 
+            },
+          },
+        });
+    } else {
+        throw new Error(response.data.messages?.[0]?.text || JSON.stringify(response.data));
+    }
 
   } catch (err) {
     try { await EInvoice.logout(); } catch (_) {}
-    console.error('[send-invoice] HATA:', err);
-
-    if (err instanceof EInvoiceApiError) {
-      const msgs = {
-        [EInvoiceApiErrorCode.UNKNOWN_ERROR]:             'GİB bilinmeyen hata döndürdü',
-        [EInvoiceApiErrorCode.INVALID_RESPONSE]:          'GİB geçersiz yanıt döndürdü',
-        [EInvoiceApiErrorCode.INVALID_ACCESS_TOKEN]:      'GİB erişim token\'ı geçersiz',
-        [EInvoiceApiErrorCode.BASIC_INVOICE_NOT_CREATED]: 'Fatura GİB tarafından oluşturulamadı',
-      };
-      return res.status(400).json({
-        success: false,
-        error: msgs[err.errorCode] || err.message,
-        errorCode: err.errorCode,
-        rawResponse: TEST_MODE === 'true' ? err.response : undefined,
-      });
-    }
+    console.error('[send-invoice] HATA:', err.message);
 
     return res.status(500).json({
-      success: false, error: 'Beklenmeyen Hata',
+      success: false, 
+      error: 'GİB İletim Hatası',
       message: err.message,
     });
   }

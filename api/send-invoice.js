@@ -1,8 +1,14 @@
 /**
- * api/send-invoice.js
+ * api/send-invoice.js - Düzeltilmiş Versiyon
  */
 
-const crypto = require('crypto');
+const {
+  default: EInvoice,
+  InvoiceType,
+  EInvoiceUnitType,
+  EInvoiceCurrencyType
+} = require('e-fatura');
+const { v4: uuidv4 } = require('uuid');
 
 // KDV Tevkifat kodları → tevkifat oranı (KDV'nin yüzdesi)
 const WH_RATES = {
@@ -43,7 +49,8 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
+  if (req.method !== 'POST')
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   const { GIB_USERNAME, GIB_PASSWORD, TEST_MODE } = process.env;
   if (!GIB_USERNAME || !GIB_PASSWORD)
@@ -56,25 +63,30 @@ module.exports = async function handler(req, res) {
   if (!body.products?.length) return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
 
   // ── Stopaj Listesi ────────────────────────────────────────────────────────
-  const stopajList = (body.taxes || []).filter(t => t.type === 'V0011' || t.type === 'V0003' || t.type === '0011' || t.type === '0003');
+  const stopajList = (body.taxes || []).filter(t => t.type === 'V0011' || t.type === 'V0003');
+  
+  // Stopaj toplamları
   let totalV0011 = 0;
   let totalV0003 = 0;
 
   // ── Ürün Satırı Hesaplamaları (Saf GİB JSON Formatı) ──────────────────────
-  const malHizmetTable = body.products.map((p) => {
+  const malHizmetTable = [];
+  
+  for (const p of body.products) {
     const qty    = parseFloat(p.quantity)     || 0;
     const up     = parseFloat(p.unitPrice)    || 0;
     const vr     = parseFloat(p.vatRate)      || 0;
     const dr     = parseFloat(p.discountRate) || 0;
     const whCode = p.withholdingCode ? parseInt(p.withholdingCode) : 0;
 
-    const gross  = r(qty * up);           // GİB 'Fiyat'
+    const gross  = r(qty * up);           // Fiyat
     const disc   = r(gross * (dr / 100)); // İskonto Tutarı
-    const net    = r(gross - disc);       // GİB 'Mal Hizmet Tutarı'
+    const net    = r(gross - disc);       // Mal Hizmet Tutarı
     const vat    = r(net * (vr / 100));   // KDV Tutarı
     const whRate = WH_RATES[whCode] || 0;
     const whAmt  = whCode ? r(vat * (whRate / 100)) : 0;
 
+    // Temel satır yapısı
     const row = {
       malHizmet: p.name,
       miktar: qty,
@@ -90,30 +102,54 @@ module.exports = async function handler(req, res) {
       vergininKdvTutari: "0"
     };
 
-    // Tevkifat (ürün bazlı)
+    // KDV Tevkifat (ürün bazlı) - GİB formatı
     if (whCode && whRate > 0) {
-      row.tevkifatKodu   = whCode;
-      row.tevkifatOrani  = whRate;
+      row.tevkifatKodu   = whCode.toString(); // STRING olmalı!
+      row.tevkifatOrani  = whRate.toString(); // STRING olmalı!
       row.tevkifatTutari = whAmt;
     }
 
-    // Stopaj (ürün bazlı)
+    // Stopaj (ürün bazlı) - GİB vergi tablosu formatı
+    // Her stopaj türü için ayrı vergi satırı
+    const vergiTableRow = [];
+    
     stopajList.forEach(t => {
       const sRate = parseFloat(t.rate) || 0;
       const sAmt = r(net * (sRate / 100));
-      if (t.type.includes('0011')) {
-          row.v0011Orani = sRate;
-          row.v0011Tutari = sAmt;
-          totalV0011 += sAmt;
-      } else if (t.type.includes('0003')) {
-          row.v0003Orani = sRate;
-          row.v0003Tutari = sAmt;
-          totalV0003 += sAmt;
+      
+      if (t.type === 'V0011') {
+        // KV Stopaj
+        vergiTableRow.push({
+          vergiKodu: "0015",  // KV Stopaj kodu
+          vergiTutari: sAmt.toFixed(2),
+          vergiOrani: sRate.toString()
+        });
+        totalV0011 += sAmt;
+      } else if (t.type === 'V0003') {
+        // GV Stopaj
+        vergiTableRow.push({
+          vergiKodu: "0003",  // GV Stopaj kodu
+          vergiTutari: sAmt.toFixed(2),
+          vergiOrani: sRate.toString()
+        });
+        totalV0003 += sAmt;
       }
     });
 
-    return { row, net, vat, whAmt, whCode };
-  });
+    // Vergi tablosunu satıra ekle
+    if (vergiTableRow.length > 0) {
+      row.vergiTable = vergiTableRow;
+    }
+
+    malHizmetTable.push({ 
+      row, 
+      net, 
+      vat, 
+      whAmt, 
+      whCode,
+      vergiTableRow 
+    });
+  }
 
   totalV0011 = r(totalV0011);
   totalV0003 = r(totalV0003);
@@ -130,13 +166,13 @@ module.exports = async function handler(req, res) {
   const includedTaxes = r(matrah + totalVAT);
   const payable       = r(includedTaxes - totalWH - totalV0011 - totalV0003);
 
-  // Fatura Tipi Otomatik Ayarlama (KDV Tevkifatı veya Stopaj varsa Tevkifat olmalıdır)
+  // Fatura Tipi Otomatik Ayarlama
   let finalInvoiceType = body.invoiceType || "SATIS";
-  if ((totalWH > 0 || totalV0011 > 0 || totalV0003 > 0) && finalInvoiceType === "SATIS") {
+  if (totalWH > 0 && finalInvoiceType === "SATIS") {
      finalInvoiceType = "TEVKIFAT";
   }
 
-  const invoiceUUID = crypto.randomUUID();
+  const invoiceUUID = uuidv4();
 
   // ── SAF GİB JSON PAYLOAD ──────────────────────────────────────────────────
   const jp = {
@@ -173,100 +209,77 @@ module.exports = async function handler(req, res) {
 
   // KDV Tevkifatı Fatura Geneli
   if (totalWH > 0) {
-    jp.hesaplananV9015 = totalWH;
+    jp.hesaplananV9015 = totalWH;  // KDV Tevkifat tutarı
     jp.tevkifataTabiIslemTutar = whBase;
     jp.tevkifataTabiIslemKdv = whVatTotal;
   }
 
-  // Stopaj Fatura Geneli ve Vergi Tablosu
+  // Stopaj Fatura Geneli - Vergi Tablosu
   const vergiTable = [];
   if (totalV0011 > 0) {
       jp.hesaplananV0011 = totalV0011;
-      vergiTable.push({ vergiKodu: "0011", vergiTutari: totalV0011.toString() });
+      vergiTable.push({ 
+        vergiKodu: "0015",  // KV Stopaj
+        vergiTutari: totalV0011.toFixed(2) 
+      });
   }
   if (totalV0003 > 0) {
       jp.hesaplananV0003 = totalV0003;
-      vergiTable.push({ vergiKodu: "0003", vergiTutari: totalV0003.toString() });
+      vergiTable.push({ 
+        vergiKodu: "0003",  // GV Stopaj
+        vergiTutari: totalV0003.toFixed(2) 
+      });
   }
   if (vergiTable.length > 0) {
       jp.vergiTable = vergiTable;
   }
 
-  console.log('[send-invoice] Payload Gönderiliyor:', JSON.stringify({
-    tip: jp.faturaTipi, vkn: jp.vknTckn, matrah, kdv: totalVAT, tevkifat: totalWH, v0011: totalV0011, v0003: totalV0003, payable,
-  }));
+  // Debug: Payload'ı logla
+  console.log('[DEBUG] GİB Payload:', JSON.stringify(jp, null, 2));
 
-  // ── GİB'E İLETİM ──────────────────────────────────────────────────────────
+  // ── GİB'E İLETİM ─────────────────────────────────────────────────────────
   try {
+    await EInvoice.connect(TEST_MODE === 'true' ? { anonymous: true } : { username: GIB_USERNAME, password: GIB_PASSWORD });
+
+    let httpClient = null;
+    let token = null;
+
+    for (const key in EInvoice) {
+        const val = EInvoice[key];
+        if (val && typeof val.post === 'function' && val.interceptors) {
+            httpClient = val;
+        }
+        if (typeof val === 'string' && val.length >= 32 && !val.includes(' ')) {
+            token = val; 
+        }
+    }
+    
+    if (!httpClient) httpClient = EInvoice.client || EInvoice.axios || EInvoice.api;
+    if (!token) token = typeof EInvoice.getToken === 'function' ? EInvoice.getToken() : (EInvoice.token || EInvoice._token);
+
+    if (!httpClient || !token) {
+        throw new Error("GİB Oturumu yakalanamadı.");
+    }
+
     const baseUrl = TEST_MODE === 'true' 
-        ? 'https://earsivportaltest.efatura.gov.tr/earsiv-services' 
-        : 'https://earsivportal.efatura.gov.tr/earsiv-services';
+        ? 'https://earsivportaltest.efatura.gov.tr/earsiv-services/dispatch' 
+        : 'https://earsivportal.efatura.gov.tr/earsiv-services/dispatch';
 
-    const reqHeaders = { 
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/javascript, */*; q=0.01'
-    };
+    const params = new URLSearchParams();
+    params.append('cmd', 'EARSIV_PORTAL_FATURA_KAYDET');
+    params.append('pageName', 'RG_TASLAKLAR');
+    params.append('token', token);
+    params.append('jp', JSON.stringify(jp));
 
-    // 1. GİB SİSTEMİNE GİRİŞ (LOGIN)
-    const loginParams = new URLSearchParams();
-    // DÜZELTİLEN KISIM: Testte anologin, Canlıda login
-    loginParams.append('assoscmd', TEST_MODE === 'true' ? 'anologin' : 'login');
-    loginParams.append('userid', GIB_USERNAME);
-    loginParams.append('sifre', GIB_PASSWORD);
-    loginParams.append('sifre2', GIB_PASSWORD);
-    loginParams.append('parola', '1');
+    console.log('[send-invoice] GİB\'e gönderiliyor...');
 
-    const loginRes = await fetch(`${baseUrl}/assos-login`, {
-        method: 'POST',
-        headers: reqHeaders,
-        body: loginParams.toString()
+    const response = await httpClient.post(baseUrl, params.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
-    const loginData = await loginRes.json();
-    const token = loginData.token;
+    await EInvoice.logout();
 
-    if (!token) {
-        throw new Error(loginData.messages?.[0]?.text || "GİB Sistemine giriş yapılamadı. Kullanıcı adı veya şifrenizi kontrol edin.");
-    }
-
-    // Oturum Çerezini (JSESSIONID) Yakalıyoruz
-    const setCookieHeader = loginRes.headers.get('set-cookie');
-    let cookieString = '';
-    if (setCookieHeader) {
-        const match = setCookieHeader.match(/JSESSIONID=[^;]+/);
-        if (match) cookieString = match[0];
-    }
-
-    // 2. FATURAYI TASLAKLARA KAYDET (DISPATCH)
-    const dispatchParams = new URLSearchParams();
-    dispatchParams.append('cmd', 'EARSIV_PORTAL_FATURA_KAYDET');
-    dispatchParams.append('pageName', 'RG_TASLAKLAR');
-    dispatchParams.append('token', token);
-    dispatchParams.append('jp', JSON.stringify(jp));
-
-    if (cookieString) reqHeaders['Cookie'] = cookieString; 
-
-    const dispatchRes = await fetch(`${baseUrl}/dispatch`, {
-        method: 'POST',
-        headers: reqHeaders,
-        body: dispatchParams.toString()
-    });
-
-    const dispatchData = await dispatchRes.json();
-
-    // 3. GÜVENLİ ÇIKIŞ (Sistemi Yormamak İçin)
-    const logoutParams = new URLSearchParams();
-    logoutParams.append('assoscmd', 'logout');
-    logoutParams.append('token', token);
-    fetch(`${baseUrl}/assos-login`, { 
-        method: 'POST', 
-        headers: reqHeaders, 
-        body: logoutParams.toString() 
-    }).catch(() => null);
-
-    // 4. BAŞARI KONTROLÜ
-    if (dispatchData.data === 'Fatura başarıyla oluşturuldu.') {
+    if (response.data && response.data.data === 'Fatura başarıyla oluşturuldu.') {
         return res.status(200).json({
           success: true,
           message: 'Fatura başarıyla oluşturuldu',
@@ -275,22 +288,29 @@ module.exports = async function handler(req, res) {
             taxIdUsed:   body.buyerTaxId,
             invoiceType: finalInvoiceType,
             totals: { 
-                matrah, kdv: totalVAT, kdvTevkifat: totalWH, 
-                stopaj: r(totalV0011 + totalV0003), vergilerDahil: includedTaxes, odenecek: payable 
+                matrah, 
+                kdv: totalVAT, 
+                kdvTevkifat: totalWH, 
+                stopaj: r(totalV0011 + totalV0003), 
+                vergilerDahil: includedTaxes, 
+                odenecek: payable 
             },
           },
         });
     } else {
-        throw new Error(dispatchData.messages?.[0]?.text || JSON.stringify(dispatchData));
+        throw new Error(response.data.messages?.[0]?.text || JSON.stringify(response.data));
     }
 
   } catch (err) {
+    try { await EInvoice.logout(); } catch (_) {}
     console.error('[send-invoice] HATA:', err.message);
+    console.error('[send-invoice] Stack:', err.stack);
 
     return res.status(500).json({
       success: false, 
       error: 'GİB İletim Hatası',
       message: err.message,
+      debug: TEST_MODE === 'true' ? { jp } : undefined
     });
   }
 };

@@ -1,13 +1,13 @@
 /**
  * api/send-invoice.js
- * 
- * ÇÖZÜM: e-fatura paketi JSON'daki özel vergi alanlarını (tevkifatKodu, v0011Orani) 
- * sildiği için, paketin sadece Token (Giriş) özelliğini kullanıp faturayı doğrudan 
- * GİB API'sine (Axios ile) saf JSON formatında iletiyoruz. PHP kütüphanesi ile aynı mantık!
  */
 
-const { default: EInvoice } = require('e-fatura');
-const axios = require('axios');
+const {
+  default: EInvoice,
+  InvoiceType,
+  EInvoiceUnitType,
+  EInvoiceCurrencyType
+} = require('e-fatura');
 const { v4: uuidv4 } = require('uuid');
 
 // KDV Tevkifat kodları → tevkifat oranı (KDV'nin yüzdesi)
@@ -67,7 +67,7 @@ module.exports = async function handler(req, res) {
   let totalV0011 = 0;
   let totalV0003 = 0;
 
-  // ── Ürün Satırı Hesaplamaları (Saf GİB JSON Formatı İçin) ─────────────────
+  // ── Ürün Satırı Hesaplamaları (Saf GİB JSON Formatı) ──────────────────────
   const malHizmetTable = body.products.map((p) => {
     const qty    = parseFloat(p.quantity)     || 0;
     const up     = parseFloat(p.unitPrice)    || 0;
@@ -77,7 +77,7 @@ module.exports = async function handler(req, res) {
 
     const gross  = r(qty * up);           // Fiyat
     const disc   = r(gross * (dr / 100)); // İskonto Tutarı
-    const net    = r(gross - disc);       // Mal Hizmet Tutarı (Net Tutar)
+    const net    = r(gross - disc);       // Mal Hizmet Tutarı
     const vat    = r(net * (vr / 100));   // KDV Tutarı
     const whRate = WH_RATES[whCode] || 0;
     const whAmt  = whCode ? r(vat * (whRate / 100)) : 0;
@@ -178,27 +178,56 @@ module.exports = async function handler(req, res) {
     malHizmetTable: malHizmetTable.map(l => l.row)
   };
 
-  // KDV Tevkifatı Fatura Geneli (Eğer Varsa)
+  // KDV Tevkifatı Fatura Geneli
   if (totalWH > 0) {
     jp.hesaplananV9015 = totalWH;
     jp.tevkifataTabiIslemTutar = whBase;
     jp.tevkifataTabiIslemKdv = whVatTotal;
   }
 
-  // Stopaj Fatura Geneli (Eğer Varsa)
-  if (totalV0011 > 0) jp.hesaplananV0011 = totalV0011;
-  if (totalV0003 > 0) jp.hesaplananV0003 = totalV0003;
+  // Stopaj Fatura Geneli ve Vergi Tablosu
+  const vergiTable = [];
+  if (totalV0011 > 0) {
+      jp.hesaplananV0011 = totalV0011;
+      vergiTable.push({ vergiKodu: "V0011", vergiTutari: totalV0011.toString() });
+  }
+  if (totalV0003 > 0) {
+      jp.hesaplananV0003 = totalV0003;
+      vergiTable.push({ vergiKodu: "V0003", vergiTutari: totalV0003.toString() });
+  }
+  if (vergiTable.length > 0) {
+      jp.vergiTable = vergiTable;
+  }
 
-  // ── GİB'E İLETİM (e-fatura paketinin kısıtlamalarını by-pass ediyoruz) ───
+  // ── GİB'E İLETİM (Yetki Hatasını Çözen Kısım) ─────────────────────────────
   try {
-    // 1. Sadece güvenli Login olmak için paketi kullanıyoruz
+    // 1. GİB'e giriş yaparak oturum çerezlerini alıyoruz
     await EInvoice.connect(TEST_MODE === 'true' ? { anonymous: true } : { username: GIB_USERNAME, password: GIB_PASSWORD });
-    
-    // 2. Token'i paketten çekiyoruz
-    const token = EInvoice.token || EInvoice._token || (EInvoice.client && EInvoice.client.token);
-    if (!token) throw new Error("GİB Portalından token alınamadı.");
 
-    // 3. Faturayı paket üzerinden DEĞİL, doğrudan Axios ile saf GİB API'sine yolluyoruz!
+    // 2. e-fatura paketinin arka planda kullandığı Axios istemcisini ve Token'i JS objesinden tarayıp yakalıyoruz
+    let httpClient = null;
+    let token = null;
+
+    for (const key in EInvoice) {
+        const val = EInvoice[key];
+        // Axios instance tespiti (içinde post metodu ve interceptor barındırır)
+        if (val && typeof val.post === 'function' && val.interceptors) {
+            httpClient = val;
+        }
+        // GİB tokenleri 32 karakterlik uzun stringlerdir
+        if (typeof val === 'string' && val.length >= 32 && !val.includes(' ')) {
+            token = val; 
+        }
+    }
+    
+    // Fallback'ler
+    if (!httpClient) httpClient = EInvoice.client || EInvoice.axios || EInvoice.api;
+    if (!token) token = typeof EInvoice.getToken === 'function' ? EInvoice.getToken() : (EInvoice.token || EInvoice._token);
+
+    if (!httpClient || !token) {
+        throw new Error("GİB Oturumu yakalanamadı. Lütfen bilgilerinizi kontrol edin.");
+    }
+
     const baseUrl = TEST_MODE === 'true' 
         ? 'https://earsivportaltest.efatura.gov.tr/earsiv-services/dispatch' 
         : 'https://earsivportal.efatura.gov.tr/earsiv-services/dispatch';
@@ -209,15 +238,16 @@ module.exports = async function handler(req, res) {
     params.append('token', token);
     params.append('jp', JSON.stringify(jp));
 
-    console.log('[send-invoice] Manuel Dispatch Başlıyor...', invoiceUUID);
+    console.log('[send-invoice] Çerezlerle (Yetkili) Manuel Dispatch Başlıyor...');
 
-    const response = await axios.post(baseUrl, params.toString(), {
+    // 3. Faturayı, çerezleri (JSESSIONID) barındıran iç istemci üzerinden gönderiyoruz
+    const response = await httpClient.post(baseUrl, params.toString(), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
     await EInvoice.logout();
 
-    // 4. GİB Başarı Kontrolü
+    // 4. Başarı kontrolü
     if (response.data && response.data.data === 'Fatura başarıyla oluşturuldu.') {
         return res.status(200).json({
           success: true,

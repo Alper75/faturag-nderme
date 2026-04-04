@@ -1,12 +1,6 @@
-/**
- * api/send-invoice-custom.js
- * Kendi kütüphanemizi kullanan fatura gönderim API'si
- */
-
 const { GibClient, Invoice, InvoiceItem } = require('../lib');
 
 module.exports = async function handler(req, res) {
-  // CORS ayarları
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -18,7 +12,6 @@ module.exports = async function handler(req, res) {
 
   const { GIB_USERNAME, GIB_PASSWORD, TEST_MODE } = process.env;
 
-  // Validasyon
   if (!GIB_USERNAME || !GIB_PASSWORD) {
     return res.status(500).json({ 
       success: false, 
@@ -28,7 +21,6 @@ module.exports = async function handler(req, res) {
 
   const body = req.body;
 
-  // Zorunlu alan kontrolü
   if (!body.buyerTaxId) {
     return res.status(400).json({ success: false, error: 'buyerTaxId zorunludur' });
   }
@@ -40,6 +32,8 @@ module.exports = async function handler(req, res) {
   if (!body.products?.length) {
     return res.status(400).json({ success: false, error: 'En az bir ürün ekleyiniz' });
   }
+
+  let client = null;
 
   try {
     // 1. Fatura modeli oluştur
@@ -55,11 +49,7 @@ module.exports = async function handler(req, res) {
       buyerTaxOffice: body.buyerTaxOffice,
       buyerAddress: body.buyerAddress,
       country: body.country,
-      note: body.note,
-      orderNumber: body.orderNumber,
-      orderDate: body.orderDate,
-      waybillNumber: body.waybillNumber,
-      waybillDate: body.waybillDate
+      note: body.note
     });
 
     // 2. Ürün kalemlerini ekle
@@ -74,7 +64,7 @@ module.exports = async function handler(req, res) {
         withholdingCode: product.withholdingCode
       });
 
-      // Ürün bazlı stopaj varsa ekle
+      // Stopajları ekle
       if (body.taxes && body.taxes.length > 0) {
         body.taxes.forEach(tax => {
           if (tax.type === 'V0011' || tax.type === 'V0003') {
@@ -86,25 +76,13 @@ module.exports = async function handler(req, res) {
       invoice.addItem(item);
     }
 
-    // 3. Fatura geneli stopajlar (eğer ürün bazlı değilse)
-    if (body.taxes && body.taxes.length > 0) {
-      body.taxes.forEach(tax => {
-        if (tax.type === 'V0011' || tax.type === 'V0003') {
-          invoice.addInvoiceTax(tax.type, parseFloat(tax.rate));
-        }
-      });
-    }
-
-    // 4. GİB JSON'ını oluştur
+    // 3. GİB JSON'ını oluştur
     const gibJSON = invoice.toGibJSON();
 
-    // Debug: JSON'ı logla (test modunda)
-    if (TEST_MODE === 'true') {
-      console.log('[DEBUG] GİB JSON:', JSON.stringify(gibJSON, null, 2));
-    }
+    console.log('[API] GİB JSON:', JSON.stringify(gibJSON, null, 2));
 
-    // 5. GİB'e bağlan ve gönder
-    const client = new GibClient({
+    // 4. GİB Client oluştur ve login yap
+    client = new GibClient({
       test: TEST_MODE === 'true'
     });
 
@@ -114,13 +92,15 @@ module.exports = async function handler(req, res) {
       client.setCredentials(GIB_USERNAME, GIB_PASSWORD);
     }
 
-    // Login
-    await client.login();
+    // Login - await ile bekle!
+    const loginResult = await client.login();
+    console.log('[API] Login sonucu:', loginResult);
 
-    // Faturayı gönder
+    // 5. Faturayı gönder
     const result = await client.sendInvoice(gibJSON);
+    console.log('[API] Gönderim sonucu:', result);
 
-    // Logout
+    // 6. Logout
     await client.logout();
 
     // Başarılı yanıt
@@ -145,19 +125,28 @@ module.exports = async function handler(req, res) {
         }
       });
     } else {
-      throw new Error('Fatura oluşturulamadı');
+      throw new Error('Fatura oluşturulamadı: ' + JSON.stringify(result.data));
     }
 
   } catch (error) {
-    console.error('[send-invoice-custom] HATA:', error);
+    console.error('[API] HATA:', error);
+    
+    // Cleanup
+    if (client) {
+      try { await client.logout(); } catch (_) {}
+    }
     
     return res.status(500).json({
       success: false,
       error: 'Fatura oluşturma hatası',
       message: error.message,
-      // Test modunda detaylı hata
       debug: TEST_MODE === 'true' ? {
-        stack: error.stack
+        stack: error.stack,
+        env: {
+          hasUsername: !!GIB_USERNAME,
+          hasPassword: !!GIB_PASSWORD,
+          testMode: TEST_MODE
+        }
       } : undefined
     });
   }

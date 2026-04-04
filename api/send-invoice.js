@@ -1,14 +1,12 @@
 /**
  * api/send-invoice.js
+ * 
+ * KESİN ÇÖZÜM: e-fatura paketi tamamen devreden çıkarıldı! 
+ * Node.js'in yerleşik 'fetch' özelliği ile doğrudan GİB API'sine bağlanılıp, 
+ * Cookie (JSESSIONID) yönetimi manuel yapılıyor ve saf JSON iletiliyor.
  */
 
-const {
-  default: EInvoice,
-  InvoiceType,
-  EInvoiceUnitType,
-  EInvoiceCurrencyType
-} = require('e-fatura');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto'); // Node.js yerleşik modülü (Şifreleme ve UUID için)
 
 // KDV Tevkifat kodları → tevkifat oranı (KDV'nin yüzdesi)
 const WH_RATES = {
@@ -49,8 +47,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST')
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   const { GIB_USERNAME, GIB_PASSWORD, TEST_MODE } = process.env;
   if (!GIB_USERNAME || !GIB_PASSWORD)
@@ -75,9 +72,9 @@ module.exports = async function handler(req, res) {
     const dr     = parseFloat(p.discountRate) || 0;
     const whCode = p.withholdingCode ? parseInt(p.withholdingCode) : 0;
 
-    const gross  = r(qty * up);           // Fiyat
+    const gross  = r(qty * up);           // GİB 'Fiyat'
     const disc   = r(gross * (dr / 100)); // İskonto Tutarı
-    const net    = r(gross - disc);       // Mal Hizmet Tutarı
+    const net    = r(gross - disc);       // GİB 'Mal Hizmet Tutarı'
     const vat    = r(net * (vr / 100));   // KDV Tutarı
     const whRate = WH_RATES[whCode] || 0;
     const whAmt  = whCode ? r(vat * (whRate / 100)) : 0;
@@ -137,13 +134,13 @@ module.exports = async function handler(req, res) {
   const includedTaxes = r(matrah + totalVAT);
   const payable       = r(includedTaxes - totalWH - totalV0011 - totalV0003);
 
-  // Fatura Tipi Otomatik Ayarlama
+  // Fatura Tipi Otomatik Ayarlama (KDV Tevkifatı veya Stopaj varsa Tevkifat olmalıdır)
   let finalInvoiceType = body.invoiceType || "SATIS";
-  if (totalWH > 0 && finalInvoiceType === "SATIS") {
+  if ((totalWH > 0 || totalV0011 > 0 || totalV0003 > 0) && finalInvoiceType === "SATIS") {
      finalInvoiceType = "TEVKIFAT";
   }
 
-  const invoiceUUID = uuidv4();
+  const invoiceUUID = crypto.randomUUID(); // Node.js dahili güvenli UUID oluşturucusu
 
   // ── SAF GİB JSON PAYLOAD ──────────────────────────────────────────────────
   const jp = {
@@ -189,66 +186,85 @@ module.exports = async function handler(req, res) {
   const vergiTable = [];
   if (totalV0011 > 0) {
       jp.hesaplananV0011 = totalV0011;
-      vergiTable.push({ vergiKodu: "V0011", vergiTutari: totalV0011.toString() });
+      vergiTable.push({ vergiKodu: "0011", vergiTutari: totalV0011.toString() });
   }
   if (totalV0003 > 0) {
       jp.hesaplananV0003 = totalV0003;
-      vergiTable.push({ vergiKodu: "V0003", vergiTutari: totalV0003.toString() });
+      vergiTable.push({ vergiKodu: "0003", vergiTutari: totalV0003.toString() });
   }
   if (vergiTable.length > 0) {
       jp.vergiTable = vergiTable;
   }
 
-  // ── GİB'E İLETİM (Yetki Hatasını Çözen Kısım) ─────────────────────────────
+  console.log('[send-invoice] Payload Gönderiliyor:', JSON.stringify({
+    tip: jp.faturaTipi, vkn: jp.vknTckn, matrah, kdv: totalVAT, tevkifat: totalWH, v0011: totalV0011, v0003: totalV0003, payable,
+  }));
+
+  // ── GİB'E İLETİM (Harici Paket Kullanılmadan %100 Node.js Native) ───────────
   try {
-    // 1. GİB'e giriş yaparak oturum çerezlerini alıyoruz
-    await EInvoice.connect(TEST_MODE === 'true' ? { anonymous: true } : { username: GIB_USERNAME, password: GIB_PASSWORD });
-
-    // 2. e-fatura paketinin arka planda kullandığı Axios istemcisini ve Token'i JS objesinden tarayıp yakalıyoruz
-    let httpClient = null;
-    let token = null;
-
-    for (const key in EInvoice) {
-        const val = EInvoice[key];
-        // Axios instance tespiti (içinde post metodu ve interceptor barındırır)
-        if (val && typeof val.post === 'function' && val.interceptors) {
-            httpClient = val;
-        }
-        // GİB tokenleri 32 karakterlik uzun stringlerdir
-        if (typeof val === 'string' && val.length >= 32 && !val.includes(' ')) {
-            token = val; 
-        }
-    }
-    
-    // Fallback'ler
-    if (!httpClient) httpClient = EInvoice.client || EInvoice.axios || EInvoice.api;
-    if (!token) token = typeof EInvoice.getToken === 'function' ? EInvoice.getToken() : (EInvoice.token || EInvoice._token);
-
-    if (!httpClient || !token) {
-        throw new Error("GİB Oturumu yakalanamadı. Lütfen bilgilerinizi kontrol edin.");
-    }
-
     const baseUrl = TEST_MODE === 'true' 
-        ? 'https://earsivportaltest.efatura.gov.tr/earsiv-services/dispatch' 
-        : 'https://earsivportal.efatura.gov.tr/earsiv-services/dispatch';
+        ? 'https://earsivportaltest.efatura.gov.tr/earsiv-services' 
+        : 'https://earsivportal.efatura.gov.tr/earsiv-services';
 
-    const params = new URLSearchParams();
-    params.append('cmd', 'EARSIV_PORTAL_FATURA_KAYDET');
-    params.append('pageName', 'RG_TASLAKLAR');
-    params.append('token', token);
-    params.append('jp', JSON.stringify(jp));
+    // 1. GİB SİSTEMİNE GİRİŞ (LOGIN)
+    const loginParams = new URLSearchParams();
+    loginParams.append('assoscmd', TEST_MODE === 'true' ? 'login' : 'anologin');
+    loginParams.append('userid', GIB_USERNAME);
+    loginParams.append('sifre', GIB_PASSWORD);
+    loginParams.append('sifre2', GIB_PASSWORD);
+    loginParams.append('parola', '1');
 
-    console.log('[send-invoice] Çerezlerle (Yetkili) Manuel Dispatch Başlıyor...');
-
-    // 3. Faturayı, çerezleri (JSESSIONID) barındıran iç istemci üzerinden gönderiyoruz
-    const response = await httpClient.post(baseUrl, params.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    const loginRes = await fetch(`${baseUrl}/assos-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: loginParams.toString()
     });
 
-    await EInvoice.logout();
+    const loginData = await loginRes.json();
+    const token = loginData.token;
 
-    // 4. Başarı kontrolü
-    if (response.data && response.data.data === 'Fatura başarıyla oluşturuldu.') {
+    if (!token) {
+        throw new Error(loginData.messages?.[0]?.text || "GİB Sistemine giriş yapılamadı. Kullanıcı adı veya şifrenizi kontrol edin.");
+    }
+
+    // Giriş sırasında GİB'in verdiği Oturum Çerezini (JSESSIONID) Yakalıyoruz
+    const setCookieHeader = loginRes.headers.get('set-cookie');
+    let cookieString = '';
+    if (setCookieHeader) {
+        const match = setCookieHeader.match(/JSESSIONID=[^;]+/);
+        if (match) cookieString = match[0];
+    }
+
+    // 2. FATURAYI TASLAKLARA KAYDET (DISPATCH)
+    const dispatchParams = new URLSearchParams();
+    dispatchParams.append('cmd', 'EARSIV_PORTAL_FATURA_KAYDET');
+    dispatchParams.append('pageName', 'RG_TASLAKLAR');
+    dispatchParams.append('token', token);
+    dispatchParams.append('jp', JSON.stringify(jp));
+
+    const dispatchHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    if (cookieString) dispatchHeaders['Cookie'] = cookieString; // Yetki hatasını çözen altın vuruş!
+
+    const dispatchRes = await fetch(`${baseUrl}/dispatch`, {
+        method: 'POST',
+        headers: dispatchHeaders,
+        body: dispatchParams.toString()
+    });
+
+    const dispatchData = await dispatchRes.json();
+
+    // 3. GÜVENLİ ÇIKIŞ (Sistemi Yormamak İçin)
+    const logoutParams = new URLSearchParams();
+    logoutParams.append('assoscmd', 'logout');
+    logoutParams.append('token', token);
+    fetch(`${baseUrl}/assos-login`, { 
+        method: 'POST', 
+        headers: dispatchHeaders, 
+        body: logoutParams.toString() 
+    }).catch(() => null);
+
+    // 4. BAŞARI KONTROLÜ
+    if (dispatchData.data === 'Fatura başarıyla oluşturuldu.') {
         return res.status(200).json({
           success: true,
           message: 'Fatura başarıyla oluşturuldu',
@@ -263,11 +279,10 @@ module.exports = async function handler(req, res) {
           },
         });
     } else {
-        throw new Error(response.data.messages?.[0]?.text || JSON.stringify(response.data));
+        throw new Error(dispatchData.messages?.[0]?.text || JSON.stringify(dispatchData));
     }
 
   } catch (err) {
-    try { await EInvoice.logout(); } catch (_) {}
     console.error('[send-invoice] HATA:', err.message);
 
     return res.status(500).json({
